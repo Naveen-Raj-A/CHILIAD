@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-obsidian text-ink antialiased;
+    font-family: theme('fontFamily.sans');
+  }
+
+  /* Monochrome scrollbars to match the dark surface treatment. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a2a transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: #2a2a2a;
+    border-radius: 9999px;
+    border: 2px solid #0e0e0e;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #3a3a3a;
+  }
+
+  /* Native select options need an explicit dark background. */
+  select option {
+    background-color: #111111;
+    color: #ffffff;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-white/40 ring-offset-2 ring-offset-obsidian;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-edge bg-surface transition-all duration-200
+      hover:border-[#333333];
+  }
+
+  .card-hover {
+    @apply rounded-xl border border-edge bg-surface transition-all duration-200
+      hover:border-[#333333] hover:bg-surface-hover;
+  }
+
+  .field {
+    @apply w-full rounded-lg border border-edge-strong bg-surface-input px-3 py-2 text-sm
+      text-ink placeholder:text-ink-muted transition-colors
+      hover:border-neutral-700 focus:border-neutral-600 focus:outline-none
+      focus:ring-1 focus:ring-neutral-600;
+  }
+
+  .label {
+    @apply mb-1.5 block text-2xs font-medium uppercase tracking-[0.12em] text-ink-secondary;
+  }
+}
