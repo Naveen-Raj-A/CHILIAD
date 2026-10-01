@@ -25,7 +25,10 @@ export default function Toast({ toast, onDismiss, duration = 3000 }) {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed bottom-6 right-6 z-50"
+      // `bottom-20` on mobile lifts the toast clear of the fixed BottomNav, which is
+// also z-50 and would otherwise cover it; at md and up nothing is pinned to the
+// bottom, so it returns to the corner.
+className="pointer-events-none fixed bottom-20 right-4 z-[60] md:bottom-6 md:right-6"
     >
       <div
         className={cn(

@@ -1,31 +1,40 @@
-import { Menu, Pencil } from 'lucide-react'
+import { Pencil, Search, Settings } from 'lucide-react'
 import { TOTAL_DAYS } from '../lib/date'
+import { cn } from '../lib/cn'
 
 /**
  * The mobile-only top bar.
  *
- * On phones the rail is an off-canvas drawer, which would otherwise leave no
- * persistent way to reach navigation or to jump to today's editor: the drawer
- * would have to be opened first, every time. This bar keeps both actions one
- * tap away and states which day is selected, which is otherwise only visible
- * inside the drawer.
+ * The hamburger it replaces is gone with the drawer: BottomNav now owns primary
+ * navigation, and two navigation affordances competing on one screen is how
+ * you get a rail nobody uses. What stays is what the bottom bar cannot carry —
+ * search, Settings, and today's editor — plus the selected day, which was
+ * otherwise only visible inside the drawer.
  *
- * `md:hidden` throughout — the desktop rail already carries both actions, and
- * two of each would be duplicate controls with different state.
+ * Settings lives here rather than as a sixth tab because five labels already
+ * fill 375px. It is a destination, not a primary one, and it must remain
+ * reachable on mobile or the route is dead on the platform most people use.
+ *
+ * `md:hidden` throughout — the desktop rail already carries all of this, and
+ * two of each would be duplicate controls.
  */
-export default function MobileHeader({ activeDayNum, onOpenNav, onUpdateToday }) {
-  return (
-    <header className="flex flex-shrink-0 items-center gap-2 border-b border-edge bg-surface/50 px-3 py-2 md:hidden">
-      <button
-        type="button"
-        onClick={onOpenNav}
-        aria-label="Open navigation"
-        aria-haspopup="dialog"
-        className="-ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink transition-colors hover:bg-surface-hover"
-      >
-        <Menu className="h-5 w-5" strokeWidth={2} />
-      </button>
+export default function MobileHeader({
+  activeView,
+  activeDayNum,
+  onOpenSearch,
+  onOpenSettings,
+  onUpdateToday,
+}) {
+  const iconButton =
+    'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink'
 
+  // Settings is a real destination reached from here, so when it is the active
+  // view this control has to say so — otherwise the app is showing the Settings
+  // page with nothing on screen marked as selected.
+  const isSettingsActive = activeView === 'settings'
+
+  return (
+    <header className="flex flex-shrink-0 items-center gap-1 border-b border-edge bg-surface/50 px-3 py-2 md:hidden">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <img
           src="/chiliad-logo.png"
@@ -42,10 +51,24 @@ export default function MobileHeader({ activeDayNum, onOpenNav, onUpdateToday })
         </p>
       </div>
 
+      <button type="button" onClick={onOpenSearch} aria-label="Search" className={iconButton}>
+        <Search className="h-5 w-5" strokeWidth={2} />
+      </button>
+
+      <button
+        type="button"
+        onClick={onOpenSettings}
+        aria-label="Settings and data"
+        aria-current={isSettingsActive ? 'page' : undefined}
+        className={cn(iconButton, isSettingsActive && 'bg-surface-hover text-emerald-400')}
+      >
+        <Settings className="h-5 w-5" strokeWidth={2} />
+      </button>
+
       <button
         type="button"
         onClick={onUpdateToday}
-        className="flex h-11 shrink-0 items-center gap-1.5 rounded-lg bg-ink px-3 text-sm font-semibold text-obsidian transition-colors active:bg-neutral-300"
+        className="ml-1 flex h-11 shrink-0 items-center gap-1.5 rounded-lg bg-ink px-3 text-sm font-semibold text-obsidian transition-colors active:bg-neutral-300"
       >
         <Pencil className="h-4 w-4" strokeWidth={2.25} />
         Update

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import MobileHeader from './components/MobileHeader'
+import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import CommandPalette from './components/CommandPalette'
 import DashboardView from './components/views/DashboardView'
@@ -79,9 +80,6 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.SAVING)
   const [pendingCount, setPendingCount] = useState(() => queueSize())
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
-  // Mobile drawer. Desktop ignores it: the rail is a static sibling there, and
-  // `md:translate-x-0` keeps it on screen whatever this is set to.
-  const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   // Global sidebar to-do list — shared by Sidebar, Dashboard and Tracker.
   // Held at the top level so every view reacts to changes in the same render.
@@ -152,18 +150,13 @@ export default function App() {
   }, [])
 
 /**
-   * Global Ctrl/Cmd + K listener, plus Escape-to-close for the overlays.
-   * Bound once here so the palette and the drawer do not each register their own.
+   * Global Ctrl/Cmd + K listener, plus Escape-to-close for the palette.
    */
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
 
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
-        if (isMobileOpen) {
-          setIsMobileOpen(false)
-          return
-        }
         if (isPaletteOpen) {
           setIsPaletteOpen(false)
           return
@@ -181,31 +174,12 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isMobileOpen, isPaletteOpen])
-
-  /**
-   * Freeze the page behind the drawer while it is open.
-   *
-   * The layout does not scroll the document — `main` is the scroll region — so
-   * without this the background would still rubber-band under the scrim on
-   * touch, which reads as the drawer itself being draggable.
-   */
-  useEffect(() => {
-    if (typeof document === 'undefined') return
-    if (!isMobileOpen) return
-
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previous
-    }
-  }, [isMobileOpen])
+  }, [isPaletteOpen])
 
   const notify = useCallback((next) => setToast(next), [])
   const dismissToast = useCallback(() => setToast(null), [])
   const closePalette = useCallback(() => setIsPaletteOpen(false), [])
-  const openMobileNav = useCallback(() => setIsMobileOpen(true), [])
-  const closeMobileNav = useCallback(() => setIsMobileOpen(false), [])
+  const openSearch = useCallback(() => setIsPaletteOpen(true), [])
 
   /**
    * Flush the offline queue as soon as connectivity is restored, so edits
@@ -495,36 +469,10 @@ export default function App() {
     //
     // `w-full` rather than `w-screen`: `100vw` counts the classic scrollbar,
     // which is enough on its own to push a few pixels of horizontal overflow
-    // onto the root and produce a whole-page sideways scroll on a phone.
+    // onto the root and produce a whole-page sideways scroll on a phone, and to
+    // overflow the viewport on desktop. `w-full` is the same width without the
+    // scrollbar added back.
     <div className="flex h-[100dvh] w-full overflow-hidden bg-obsidian text-ink">
-      {/*
-        Drawer scrim.
-
-        Conditionally rendered, and this is load-bearing rather than tidiness.
-        A permanently-mounted `fixed inset-0` scrim stays in the DOM with the
-        drawer closed, so on a phone it sits over the main content doing exactly
-        what it is styled to do: dimming and blurring the dashboard on load.
-        `md:hidden` keeps it off desktop, where the rail is a static sibling and
-        a backdrop over it would be meaningless.
-
-        Removing the element rather than hiding it with `opacity-0` also removes
-        it from the accessibility tree and from the tap surface, so there is no
-        invisible full-screen button swallowing taps when the drawer is closed.
-      */}
-      {isMobileOpen && (
-        // `aria-hidden` + `tabIndex={-1}` on purpose: the drawer's own X button
-        // and the Escape key are the accessible ways to dismiss, and this
-        // scrim would otherwise be a second control with the same label and an
-        // extra tab stop reading "Close navigation".
-        <button
-          type="button"
-          onClick={closeMobileNav}
-          aria-hidden="true"
-          tabIndex={-1}
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
-        />
-      )}
-
       <Sidebar
         activeView={activeView}
         onNavigate={setActiveView}
@@ -532,16 +480,16 @@ export default function App() {
         onUpdateToday={handleUpdateToday}
         syncStatus={syncStatus}
         pendingCount={pendingCount}
-        onOpenSearch={() => setIsPaletteOpen(true)}
-        isOpen={isMobileOpen}
-        onClose={closeMobileNav}
+        onOpenSearch={openSearch}
       />
 
       {/* Content column: the mobile bar, then the one scrolling region. */}
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileHeader
+          activeView={activeView}
           activeDayNum={selectedDayNum}
-          onOpenNav={openMobileNav}
+          onOpenSearch={openSearch}
+          onOpenSettings={() => setActiveView('settings')}
           onUpdateToday={handleUpdateToday}
         />
 
@@ -552,11 +500,16 @@ export default function App() {
         */}
         <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth bg-obsidian">
           {/*
-            `pb-[env(safe-area-inset-bottom)]` keeps the footer clear of the
-            iOS home indicator, and the side padding collapses to `px-4` on
-            phones so cards use the width they have.
+            `pb-20` clears the fixed BottomNav so the last card and the footer
+            are not permanently underneath it; `md:pb-6` gives that space back
+            on desktop, where the rail is a sibling and nothing is fixed over
+            the content.
+
+            The safe-area inset itself is handled by the bottom bar, which pads
+            for it where it actually sits — padding it here as well would stack
+            a full extra inset of dead space above the bar on a notched phone.
           */}
-          <div className="flex min-h-full w-full flex-col px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-6 md:py-6 lg:px-10">
+          <div className="flex min-h-full w-full flex-col px-4 py-4 pb-20 md:px-6 md:py-6 md:pb-6 lg:px-10">
             <div className="flex-1 space-y-4 md:space-y-6">
               <ActiveView {...viewProps} />
 
@@ -567,6 +520,13 @@ export default function App() {
           </div>
         </main>
       </div>
+
+      {/*
+        The mobile tab bar. A sibling of the content column rather than a child
+        of `main`, because it is `fixed` and must not scroll with the content or
+        inherit `main`'s scroll container.
+      */}
+      <BottomNav activeView={activeView} onNavigate={setActiveView} />
 
       <Toast toast={toast} onDismiss={dismissToast} />
 

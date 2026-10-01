@@ -1,4 +1,4 @@
-import { Pencil, Search, X } from 'lucide-react'
+import { Pencil, Search } from 'lucide-react'
 import { NAV_ITEMS } from '../lib/nav'
 import { cn } from '../lib/cn'
 import { TOTAL_DAYS } from '../lib/date'
@@ -12,16 +12,17 @@ function detectMac() {
 }
 
 /**
- * The navigation rail on desktop; an off-canvas drawer on mobile.
+ * The desktop navigation rail.
  *
- * Below `md` the same markup is pinned over the content and translated off the
- * left edge, so there is one component and one source of truth for the nav
- * rather than a desktop copy and a mobile copy that drift apart. At `md` and up
- * the positioning classes drop out and it becomes the ordinary fixed-width
- * sibling it always was.
+ * Desktop only (`hidden md:flex`). On phones this is superseded by
+ * BottomNav, which replaced the off-canvas drawer: the drawer cost two taps per
+ * destination and hid the app's structure behind a hamburger, and it needed a
+ * scrim, a translate transition and a close affordance that no longer have any
+ * job here. Removing them is the point — an always-mounted overlay is what put
+ * a dimmed, blurred veil over the mobile dashboard in the first place.
  *
- * `isOpen` and `onClose` are mobile-only concerns: `md:translate-x-0` pins the
- * rail back on screen regardless of them, so the desktop view needs no branch.
+ * Settings is reachable on mobile from the header, since the bottom bar has no
+ * room for a sixth tab.
  */
 export default function Sidebar({
   activeView,
@@ -31,38 +32,11 @@ export default function Sidebar({
   syncStatus,
   pendingCount,
   onOpenSearch,
-  isOpen = false,
-  onClose,
 }) {
   const isMac = detectMac()
 
-  // On mobile every route change should dismiss the drawer: leaving it open
-  // over the view the user just chose is the classic off-canvas failure.
-  const navigate = (id) => {
-    onNavigate(id)
-    onClose?.()
-  }
-
-  const openSearch = () => {
-    onOpenSearch()
-    onClose?.()
-  }
-
   return (
-    <aside
-      // Below md this is a fixed overlay drawer. `inset-y-0` with `h-full`
-      // would fight it, so height comes from the top/bottom insets on mobile
-      // and from `h-full` on desktop via md:h-full.
-      className={cn(
-        'z-50 flex w-64 flex-shrink-0 flex-col border-r border-edge bg-surface/50',
-        'fixed inset-y-0 left-0 md:static md:h-full md:translate-x-0',
-        'transition-transform duration-300 ease-out md:transition-none',
-        isOpen ? 'translate-x-0' : '-translate-x-full',
-        // A shadow only while it is an overlay; a persistent shadow on a static
-        // rail reads as a doubled border.
-        isOpen ? 'shadow-2xl shadow-black/60' : 'md:shadow-none',
-      )}
-    >
+    <aside className="hidden w-64 flex-shrink-0 flex-col border-r border-edge bg-surface/50 md:flex">
       {/* Brand */}
       <div className="flex-shrink-0 border-b border-edge px-5 py-4">
         <div className="flex items-center gap-2.5">
@@ -77,16 +51,6 @@ export default function Sidebar({
             <p className="truncate text-sm font-semibold tracking-tight text-ink">Chiliad</p>
             <p className="text-2xs text-ink-secondary">1,000-Day OS</p>
           </div>
-
-          {/* Only reachable on mobile, where there is no rail to close from. */}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close navigation"
-            className="-mr-1 ml-auto flex h-11 w-11 items-center justify-center rounded-lg text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink md:hidden"
-          >
-            <X className="h-5 w-5" strokeWidth={2} />
-          </button>
         </div>
 
         <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-edge bg-surface-input px-2.5 py-1">
@@ -108,7 +72,7 @@ export default function Sidebar({
       >
         <button
           type="button"
-          onClick={openSearch}
+          onClick={onOpenSearch}
           className="mb-2 flex min-h-[44px] w-full items-center gap-3 rounded-lg border border-edge-strong bg-surface-input px-3 py-2.5 text-sm text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
         >
           <Search className="h-4 w-4 shrink-0" strokeWidth={2} />
@@ -124,7 +88,7 @@ export default function Sidebar({
             <button
               key={id}
               type="button"
-              onClick={() => navigate(id)}
+              onClick={() => onNavigate(id)}
               aria-current={isActive ? 'page' : undefined}
               className={cn(
                 'flex min-h-[44px] w-full items-center gap-3 rounded-lg border-r-2 px-3 py-2.5 text-sm font-medium transition-colors duration-200',
@@ -151,10 +115,7 @@ export default function Sidebar({
 
         <button
           type="button"
-          onClick={() => {
-            onUpdateToday()
-            onClose?.()
-          }}
+          onClick={onUpdateToday}
           className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-ink px-3.5 py-2.5 text-sm font-semibold text-obsidian transition-colors hover:bg-neutral-200 active:bg-neutral-300"
         >
           <Pencil className="h-4 w-4" strokeWidth={2.25} />
