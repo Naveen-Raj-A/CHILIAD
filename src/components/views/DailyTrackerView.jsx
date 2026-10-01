@@ -1,11 +1,18 @@
 import { useState } from 'react'
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, Lock, Save, X } from 'lucide-react'
 import StatusBadge from '../StatusBadge'
+import PlanItemStatus from '../PlanItemStatus'
 import ProgressBar from '../ProgressBar'
 import NotesCanvas from '../NotesCanvas'
 import { cn } from '../../lib/cn'
 import { LOCK_PAST, LOCK_TODAY, LOCK_FUTURE, canEdit, lockLabel, lockState } from '../../lib/lock'
-import { planProgressPct, sanitizePlanItems } from '../../lib/plan'
+import {
+  cyclePlanItemStatus,
+  isItemComplete,
+  planProgressPct,
+  sanitizePlanItems,
+  setPlanItemStatus,
+} from '../../lib/plan'
 import { TOTAL_DAYS, formatLongDate } from '../../lib/date'
 
 /** Today is the only editable day; everything else is viewable at most. */
@@ -58,13 +65,23 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
     setDirtyDay(selectedDayNum)
   }
 
-  /** Tick a planned item and commit immediately: it is the day's progress. */
+  /** Move a planned item through its status cycle and commit immediately. */
   const handleTogglePlanItem = (id) => {
     if (!editable || !entry) return
-    const nextItems = planItems.map((item) =>
-      item.id === id ? { ...item, done: !item.done } : item,
-    )
-    onSave({ ...entry, plannedItems: nextItems })
+    onSave({ ...entry, plannedItems: cyclePlanItemStatus(planItems, id) })
+  }
+
+  /**
+   * Set an item's status explicitly.
+   *
+   * Same write path as the planner's control and the same day record, so a task
+   * moved to "Completed" here and one moved in the TO - DO view are the same
+   * edit - whichever screen the user happened to use, the day's progress and
+   * status follow.
+   */
+  const handlePlanItemStatus = (id, status) => {
+    if (!editable || !entry) return
+    onSave({ ...entry, plannedItems: setPlanItemStatus(planItems, id, status) })
   }
 
   /**
@@ -102,7 +119,11 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
     if (hasPlan) {
       onSave({
         ...values,
-        plannedItems: planItems.map((item) => ({ ...item, done: true })),
+        plannedItems: planItems.map((item) => ({
+          ...item,
+          status: 'Completed',
+          done: true,
+        })),
       })
     } else {
       onSave({ ...values, progress: 100 })
@@ -250,10 +271,15 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
                   <button
                     type="button"
                     role="checkbox"
-                    aria-checked={item.done}
+                    // 'mixed' is the ARIA value for the half-done state, which is
+                    // exactly what a tri-state task is. Reporting a boolean here
+                    // would tell assistive tech the task is untouched.
+                    aria-checked={
+                      isItemComplete(item) ? true : item.status === 'In Progress' ? 'mixed' : false
+                    }
                     disabled={!editable}
                     onClick={() => handleTogglePlanItem(item.id)}
-                    aria-label={`${item.done ? 'Untick' : 'Tick'} "${item.text}"`}
+                    aria-label={`${item.status === 'Pending' ? 'Start' : isItemComplete(item) ? 'Reopen' : 'Complete'} "${item.text}"`}
                     className={cn(
                       // The 44px box is the tap target; the 16px square drawn
                       // inside it is the visual, centred. Growing the square
@@ -265,30 +291,51 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
                     <span
                       className={cn(
                         'flex h-4 w-4 items-center justify-center rounded border transition-colors',
-                        item.done
+                        isItemComplete(item)
                           ? 'border-emerald-500/60 bg-emerald-500 text-obsidian'
-                          : 'border-edge-strong bg-surface hover:border-neutral-600',
+                          : item.status === 'In Progress'
+                            ? 'border-sky-400 bg-sky-400/20'
+                            : 'border-edge-strong bg-surface hover:border-neutral-600',
                       )}
                     >
-                      {item.done && <Check className="h-3 w-3" strokeWidth={3} />}
+                      {isItemComplete(item) && <Check className="h-3 w-3" strokeWidth={3} />}
                     </span>
                   </button>
                   <span
                     className={cn(
                       'min-w-0 flex-1 py-2 break-words text-xs leading-relaxed',
-                      item.done ? 'text-ink-muted line-through' : 'text-ink-secondary',
+                      isItemComplete(item)
+                        ? 'text-ink-muted line-through'
+                        : item.status === 'In Progress'
+                          ? 'text-sky-400'
+                          : 'text-ink-secondary',
                     )}
                   >
                     {item.text}
                   </span>
+
+                  {/*
+                    Always visible, at every viewport. Status is the most common
+                    thing anyone does to a task, so it must not depend on hover;
+                    the destructive remove action below still collapses behind
+                    `pointer:fine`, which is the right trade for the opposite
+                    reason.
+                  */}
+                  <PlanItemStatus
+                    id={item.id}
+                    value={item.status}
+                    itemText={item.text}
+                    onChange={(status) => handlePlanItemStatus(item.id, status)}
+                    disabled={!editable}
+                  />
 
                   {editable && (
                     <span className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity focus-within:opacity-100 [@media(pointer:fine)]:opacity-0 [@media(pointer:fine)]:group-hover:opacity-100">
                       <button
                         type="button"
                         onClick={() => handleTogglePlanItem(item.id)}
-                        title={item.done ? 'Reopen item' : 'Mark done'}
-                        aria-label={`${item.done ? 'Reopen' : 'Mark done'}: ${item.text}`}
+                        title={isItemComplete(item) ? 'Reopen item' : 'Mark done'}
+                        aria-label={`${isItemComplete(item) ? 'Reopen' : 'Mark done'}: ${item.text}`}
                         className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-input hover:text-emerald-400 active:bg-surface-input"
                       >
                         <Check className="h-4 w-4" strokeWidth={2.5} />

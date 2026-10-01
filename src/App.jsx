@@ -49,6 +49,25 @@ const VIEWS = {
   settings: SettingsView,
 }
 
+/**
+ * Translate a push result into a badge state.
+ *
+ * One function for every push site, because they used to disagree: two of the
+ * three treated `blocked` as a failed write. `blocked` means the destination was
+ * inspected up front and found unwritable, so no request was attempted and there
+ * is nothing that could have succeeded. Reporting that as a red SYNC ERROR was
+ * wrong twice over - it is a configuration state, not a failure, and no amount
+ * of retrying clears it.
+ *
+ * A genuine failure still earns SYNC ERROR, and an offline device still gets
+ * OFFLINE, because those two are states the user can act on.
+ */
+function resolvePushStatus(result) {
+  if (result?.ok) return SYNC_STATUS.SYNCED
+  if (result?.blocked) return SYNC_STATUS.LOCAL
+  return isOnline() ? SYNC_STATUS.ERROR : SYNC_STATUS.OFFLINE
+}
+
 export default function App() {
   // Kept live rather than read once: when the calendar day rolls over, the
   // planner's writable target, the edit lock, and the streak counters all have
@@ -201,6 +220,17 @@ export default function App() {
 
       const flushed = await flushQueue()
       setPendingCount(queueSize())
+
+      // `skipped` means the flush declined to run at all because the
+      // destination is unwritable. Reporting SYNCED there would claim a write
+      // that never happened and hide the real state behind a green badge.
+      if (flushed.skipped) {
+        clearQueue()
+        setPendingCount(0)
+        setSyncStatus(SYNC_STATUS.LOCAL)
+        return
+      }
+
       setSyncStatus(flushed.failed > 0 ? SYNC_STATUS.ERROR : SYNC_STATUS.SYNCED)
       if (flushed.pushed > 0) {
         notify({
@@ -271,19 +301,16 @@ export default function App() {
       notify({ tone: 'success', message: `Day ${clamped.dayNum} saved.` })
 
       // 2. Background push. Failure is queued, never surfaced as a lost save.
-      setSyncStatus(SYNC_STATUS.SAVING)
+      // No `SAVING` flip first when there is nowhere to push to: that flashes
+      // the badge on every keystroke-triggered save and then falls back to
+      // LOCAL, which reads as a fault that has just been fixed.
+      if (!isSyncConfigured()) setSyncStatus(SYNC_STATUS.LOCAL)
+      else setSyncStatus(SYNC_STATUS.SAVING)
+
       pushEntry(clamped)
         .then((result) => {
           setPendingCount(queueSize())
-          if (result.ok) {
-            setSyncStatus(SYNC_STATUS.SYNCED)
-          } else if (result.blocked) {
-            // The destination is known-unwritable, so nothing was attempted.
-            // This is a configuration state, not a failed write: LOCAL MODE.
-            setSyncStatus(SYNC_STATUS.LOCAL)
-          } else {
-            setSyncStatus(isOnline() ? SYNC_STATUS.ERROR : SYNC_STATUS.OFFLINE)
-          }
+          setSyncStatus(resolvePushStatus(result))
         })
         .catch(() => {
           setSyncStatus(SYNC_STATUS.ERROR)
@@ -328,15 +355,13 @@ export default function App() {
 
       // Pushed on the same path as a normal save so the offline queue and the
       // sync badge behave identically for planned writes.
-      setSyncStatus(SYNC_STATUS.SAVING)
+      if (!isSyncConfigured()) setSyncStatus(SYNC_STATUS.LOCAL)
+      else setSyncStatus(SYNC_STATUS.SAVING)
+
       pushEntry(updated)
         .then((result) => {
           setPendingCount(queueSize())
-          if (result.ok) {
-            setSyncStatus(SYNC_STATUS.SYNCED)
-          } else {
-            setSyncStatus(isOnline() ? SYNC_STATUS.ERROR : SYNC_STATUS.OFFLINE)
-          }
+          setSyncStatus(resolvePushStatus(result))
         })
         .catch(() => {
           setSyncStatus(SYNC_STATUS.ERROR)
@@ -346,10 +371,10 @@ export default function App() {
     [days, notify, todayISO],
   )
 
-  /**
-   * "Update Today" opens the tracker on today's date, falling back to the
-   * first day with recorded activity, then to Day 1.
-   */
+/**
+ * "Update Today" opens the tracker on today's date, falling back to the
+ * first day with recorded activity, then to Day 1.
+ */
   const handleUpdateToday = useCallback(() => {
     const byDate = days.find((day) => day.date === todayISO)
     if (byDate) {
@@ -490,7 +515,6 @@ export default function App() {
           activeDayNum={selectedDayNum}
           onOpenSearch={openSearch}
           onOpenSettings={() => setActiveView('settings')}
-          onUpdateToday={handleUpdateToday}
         />
 
         {/*

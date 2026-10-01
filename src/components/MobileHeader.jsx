@@ -1,4 +1,4 @@
-import { Pencil, Search, Settings } from 'lucide-react'
+import { Search, Settings } from 'lucide-react'
 import { TOTAL_DAYS } from '../lib/date'
 import { cn } from '../lib/cn'
 
@@ -7,9 +7,13 @@ import { cn } from '../lib/cn'
  *
  * The hamburger it replaces is gone with the drawer: BottomNav now owns primary
  * navigation, and two navigation affordances competing on one screen is how
- * you get a rail nobody uses. What stays is what the bottom bar cannot carry —
- * search, Settings, and today's editor — plus the selected day, which was
- * otherwise only visible inside the drawer.
+ * you get a rail nobody uses. The filled "Update" action is gone too - the
+ * bottom bar is the primary control on this screen and a second one in the
+ * header competes with it. Reaching today's editor is the Daily Tracker tab,
+ * which defaults to today.
+ *
+ * What remains is what the bottom bar cannot carry - search, Settings - plus
+ * the selected day, which is otherwise not visible anywhere on mobile.
  *
  * Settings lives here rather than as a sixth tab because five labels already
  * fill 375px. It is a destination, not a primary one, and it must remain
@@ -23,7 +27,6 @@ export default function MobileHeader({
   activeDayNum,
   onOpenSearch,
   onOpenSettings,
-  onUpdateToday,
 }) {
   const iconButton =
     'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink'
@@ -63,15 +66,6 @@ export default function MobileHeader({
         className={cn(iconButton, isSettingsActive && 'bg-surface-hover text-emerald-400')}
       >
         <Settings className="h-5 w-5" strokeWidth={2} />
-      </button>
-
-      <button
-        type="button"
-        onClick={onUpdateToday}
-        className="ml-1 flex h-11 shrink-0 items-center gap-1.5 rounded-lg bg-ink px-3 text-sm font-semibold text-obsidian transition-colors active:bg-neutral-300"
-      >
-        <Pencil className="h-4 w-4" strokeWidth={2.25} />
-        Update
       </button>
     </header>
   )

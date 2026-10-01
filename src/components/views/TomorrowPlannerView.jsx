@@ -1,11 +1,20 @@
 import { useMemo, useState } from 'react'
 import { CalendarClock, Check, Lock, Pencil, Plus, Target, X } from 'lucide-react'
 import Headline from '../Headline'
+import PlanItemStatus from '../PlanItemStatus'
 import ProgressBar from '../ProgressBar'
 import StatusBadge from '../StatusBadge'
 import { cn } from '../../lib/cn'
 import { formatLongDate } from '../../lib/date'
-import { createPlanItem, planProgressPct, sanitizePlanItems } from '../../lib/plan'
+import {
+  createPlanItem,
+  cyclePlanItemStatus,
+  isItemComplete,
+  planProgressPct,
+  planRemaining,
+  sanitizePlanItems,
+  setPlanItemStatus,
+} from '../../lib/plan'
 
 /** How many upcoming days the planner offers to queue work against. */
 const UPCOMING_LIMIT = 30
@@ -62,7 +71,18 @@ export default function TomorrowPlannerView({
   }
 
   const handleToggle = (id) => {
-    commit(items.map((item) => (item.id === id ? { ...item, done: !item.done } : item)))
+    commit(cyclePlanItemStatus(items, id))
+  }
+
+  /**
+   * Set an item's status explicitly (Pending / In Progress / Completed).
+   *
+   * Writes through `setPlanItemStatus` straight into the day record, so the
+   * change lands on that specific date and the Daily Tracker for it shows the
+   * new status the next time it renders - there is no second copy to reconcile.
+   */
+  const handleStatusChange = (id, status) => {
+    commit(setPlanItemStatus(items, id, status))
   }
 
   const handleRemove = (id) => {
@@ -103,7 +123,7 @@ export default function TomorrowPlannerView({
     .sort((a, b) => a.dayNum - b.dayNum)
 
   const progress = planProgressPct(items)
-  const remaining = items.filter((item) => !item.done).length
+  const remaining = planRemaining(items)
 
   return (
     <div className="w-full space-y-6">
@@ -248,19 +268,20 @@ export default function TomorrowPlannerView({
                   <button
                     type="button"
                     onClick={() => handleToggle(item.id)}
-                    aria-pressed={item.done}
-                    aria-label={`Mark "${item.text}" as ${item.done ? 'not planned' : 'planned'}`}
+                    aria-label={`${item.status === 'Pending' ? 'Start' : isItemComplete(item) ? 'Reopen' : 'Complete'} "${item.text}"`}
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors"
                   >
                     <span
                       className={cn(
                         'flex h-4 w-4 items-center justify-center rounded border transition-colors',
-                        item.done
+                        isItemComplete(item)
                           ? 'border-emerald-500/60 bg-emerald-500 text-obsidian'
-                          : 'border-edge-strong bg-surface hover:border-neutral-600',
+                          : item.status === 'In Progress'
+                            ? 'border-sky-400 bg-sky-400/20'
+                            : 'border-edge-strong bg-surface hover:border-neutral-600',
                       )}
                     >
-                      {item.done && <Check className="h-3 w-3" strokeWidth={3} />}
+                      {isItemComplete(item) && <Check className="h-3 w-3" strokeWidth={3} />}
                     </span>
                   </button>
 
@@ -285,7 +306,7 @@ export default function TomorrowPlannerView({
                       onDoubleClick={() => beginEdit(item)}
                       className={cn(
                         'flex min-h-[44px] min-w-0 flex-1 items-center break-words py-1 text-left text-xs leading-relaxed transition-colors',
-                        item.done
+                        isItemComplete(item)
                           ? 'text-ink-muted line-through'
                           : 'text-ink-secondary hover:text-ink',
                       )}
@@ -293,6 +314,24 @@ export default function TomorrowPlannerView({
                     >
                       {item.text}
                     </button>
+                  )}
+
+                  {editingId !== item.id && (
+                    <span className="flex shrink-0 items-center gap-1">
+                      {/*
+                        Status is always visible, at every viewport. The
+                        destructive edit/remove pair beside it stays behind
+                        `pointer:fine`, but status is the most common action on a
+                        task and a hover-only control is simply unreachable by
+                        touch.
+                      */}
+                      <PlanItemStatus
+                        id={item.id}
+                        value={item.status}
+                        itemText={item.text}
+                        onChange={(status) => handleStatusChange(item.id, status)}
+                      />
+                    </span>
                   )}
 
                   {editingId !== item.id && (

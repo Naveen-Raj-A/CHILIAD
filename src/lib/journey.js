@@ -1,5 +1,5 @@
 import { JOURNEY_START_ISO, TOTAL_DAYS, dateForDay } from './date'
-import { COMPLETED_STATUSES, STATUSES, deriveStatus } from './status'
+import { COMPLETED_STATUSES, STATUSES, deriveStatus, hasRecordedContent } from './status'
 import { sanitizePlanItems } from './plan'
 
 /** Fields that make up a single journey day record. */
@@ -116,13 +116,8 @@ export function applyStatus(days, todayISO) {
  */
 export function isLogged(day) {
   if (!day) return false
-  if (day.progress > 0) return true
-  if (COMPLETED_STATUSES.has(day.status)) return true
-  return Boolean(
-    (day.mainTasks && day.mainTasks.trim()) ||
-      (day.details && day.details.trim()) ||
-      (day.notes && day.notes.trim()),
-  )
+  if (hasRecordedContent(day)) return true
+  return COMPLETED_STATUSES.has(day.status)
 }
 
 /**
