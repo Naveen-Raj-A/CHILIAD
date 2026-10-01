@@ -8,7 +8,8 @@
     "build": "vite build",
     "icons": "python scripts/build-icons.py",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:overlay": "vite build --config smoke.config.mjs && node .smoke-dist/smoke-entry.js"
   },
   "dependencies": {
     "clsx": "^2.1.1",
