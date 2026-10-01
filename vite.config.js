@@ -12,6 +12,9 @@ export default defineConfig({
       manifest: {
         name: 'Chiliad - 1,000-Day Journey OS',
         short_name: 'Chiliad',
+        // Kept in step with package.json so an installed app can report which
+        // build it is.
+        version: '0.1.24',
         description:
           'Track a 1,000-day journey with daily logs, heatmaps and analytics.',
         theme_color: '#0e0e0e',

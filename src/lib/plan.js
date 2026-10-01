@@ -84,8 +84,57 @@ export function planRemaining(items) {
   return items.filter((item) => !item.done).length
 }
 
-/** Plain-text rendering of a plan, used by the CSV export. */
+/**
+ * Render a plan as the `To-Do List` text used by the sheet, the data table, and
+ * the CSV export.
+ *
+ * Each item becomes a checkbox line - `[x]` when ticked, `[ ]` when still open -
+ * one per line. This is the format the sheet stores, so it has to be readable
+ * and editable by hand in the spreadsheet as well as machine-parseable back
+ * into `plannedItems`; see `parseToDoList`.
+ *
+ * Lines are newline-separated rather than comma- or semicolon-separated so an
+ * item containing a comma cannot corrupt the list, and so the cell reads the
+ * same way in the sheet as it does in the app.
+ */
 export function planToText(items) {
-  const list = sanitizePlanItems(items)
-  return list.map((item) => `[${item.done ? 'x' : '!'}] ${item.text}`).join('; ')
+  return sanitizePlanItems(items)
+    .map((item) => `[${item.done ? 'x' : ' '}] ${item.text}`)
+    .join('\n')
+}
+
+/**
+ * Parse a `To-Do List` cell back into plan items.
+ *
+ * The inverse of `planToText`, so a round trip through the sheet is lossless.
+ * Tolerant by design: bare text with no checkbox is read as an open item, and
+ * common alternatives (`[X]`, `[!]`, `[*]`, `[-]`) are accepted as ticked, so a
+ * cell edited by hand in the spreadsheet still imports cleanly.
+ */
+export function parseToDoList(text) {
+  if (typeof text !== 'string') return []
+
+  const items = []
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+
+    const match = trimmed.match(/^\[(.)\]\s*(.+)$/)
+    if (!match) {
+      items.push({ id: makeId(), text: trimmed.slice(0, MAX_PLAN_ITEM_LENGTH), done: false })
+      continue
+    }
+
+    const text2 = match[2].trim().slice(0, MAX_PLAN_ITEM_LENGTH)
+    if (!text2) continue
+
+    const mark = match[1].toLowerCase()
+    items.push({
+      id: makeId(),
+      text: text2,
+      done: mark !== ' ' && mark !== '!',
+    })
+  }
+
+  return sanitizePlanItems(items)
 }

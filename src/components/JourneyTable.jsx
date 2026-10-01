@@ -4,6 +4,7 @@ import StatusBadge from './StatusBadge'
 import { cn } from '../lib/cn'
 import { formatShortDate } from '../lib/date'
 import { LOCK_FUTURE, lockState } from '../lib/lock'
+import { sanitizePlanItems } from '../lib/plan'
 
 const PAGE_SIZE = 25
 
@@ -14,6 +15,7 @@ const COLUMNS = [
   'Day',
   'Date',
   'Main Tasks',
+  'To-Do List',
   'Status',
   'Progress %',
   'Details / Log',
@@ -39,6 +41,41 @@ function ProgressCell({ value }) {
         {value}%
       </span>
     </div>
+  )
+}
+
+/**
+ * A day's checklist, rendered as `[x]` / `[ ]` lines.
+ *
+ * Mirrors the `To-Do List` sheet column exactly - same markers, same order - so
+ * what the table shows and what the sheet stores are recognisably the same
+ * thing. Whitespace is preserved and the block is capped in height: a long plan
+ * scrolls inside the cell instead of stretching one table row to fit a dozen
+ * items.
+ */
+function ToDoCell({ items }) {
+  const list = sanitizePlanItems(items)
+  if (list.length === 0) return <span className="text-ink-muted">{EM_DASH}</span>
+
+  return (
+    <ul className="max-h-24 space-y-0.5 overflow-y-auto whitespace-pre pr-1 text-xs leading-relaxed">
+      {list.map((item) => (
+        <li key={item.id} className="flex gap-1.5">
+          <span
+            aria-hidden="true"
+            className={cn(
+              'shrink-0 font-mono',
+              item.done ? 'text-emerald-400' : 'text-ink-muted',
+            )}
+          >
+            {item.done ? '[x]' : '[ ]'}
+          </span>
+          <span className={cn('min-w-0 break-words', item.done ? 'text-ink-secondary' : 'text-ink')}>
+            {item.text}
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -116,7 +153,7 @@ export default function JourneyTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[72rem] border-collapse text-left text-sm">
+        <table className="w-full min-w-[84rem] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-edge bg-surface-raised/60">
               {COLUMNS.map((column, index) => (
@@ -171,6 +208,9 @@ export default function JourneyTable({
                   </Cell>
                   <Cell className="max-w-64 truncate text-ink">
                     {day.mainTasks || <span className="text-ink-muted">{EM_DASH}</span>}
+                  </Cell>
+                  <Cell className="max-w-56">
+                    <ToDoCell items={day.plannedItems} />
                   </Cell>
                   <Cell>
                     <StatusBadge status={day.status} />

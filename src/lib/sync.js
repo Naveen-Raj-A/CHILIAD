@@ -7,6 +7,8 @@
  * degrades the app to pure-local behaviour instead of breaking it.
  */
 
+import { parseToDoList, planToText } from './plan'
+
 /** The backend endpoint. */
 export const SYNC_ENDPOINT = '/api/sync'
 
@@ -147,17 +149,22 @@ export function queueSize() {
 // --- Google Sheet row schema ----------------------------------------------
 
 /**
- * The seven columns of the backing Google Sheet, in sheet order.
+ * The eight columns of the backing Google Sheet, in sheet order.
  *
  * This is the wire contract, not an implementation detail: anything the app
  * sends is shaped like a row of that sheet, and anything the sheet returns is
  * read back the same way. Keeping the two in one place stops the payload and
  * the parser from drifting apart.
+ *
+ * `To-Do List` is the structured column: planned items flattened to one
+ * checkbox line each, which is what a sheet reader expects and what makes the
+ * plan legible without parsing an array.
  */
 export const SHEET_COLUMNS = [
   'Day Number',
   'Date',
-  'Main Tasks / Planned To-Dos',
+  'Main Tasks',
+  'To-Do List',
   'Status',
   'Progress %',
   'Details / Log',
@@ -176,7 +183,8 @@ export function toSheetRow(day) {
   return {
     'Day Number': day.dayNum,
     Date: day.date,
-    'Main Tasks / Planned To-Dos': day.mainTasks || '',
+    'Main Tasks': day.mainTasks || '',
+    'To-Do List': planToText(day.plannedItems),
     Status: day.status,
     'Progress %': Math.min(Math.max(Number(day.progress) || 0, 0), 100),
     'Details / Log': day.details || '',
@@ -190,6 +198,10 @@ export function toSheetRow(day) {
  * Tolerant by design: a header rename, a blank progress cell, or a stringified
  * number must not throw or corrupt the merge. `fallback` supplies the day
  * number and date, so the row is always bound to the right slot.
+ *
+ * `To-Do List` is parsed back into structured items, which makes the sheet a
+ * real round trip rather than a one-way export: a plan written in the
+ * spreadsheet imports as a real checklist.
  */
 export function fromSheetRow(row, fallback) {
   if (!row || typeof row !== 'object') return null
@@ -205,11 +217,13 @@ export function fromSheetRow(row, fallback) {
   const rawDayNum = pick('Day Number', 'dayNumber', 'day')
   const dayNum = Number(rawDayNum) || fallback.dayNum
   const progress = Number(pick('Progress %', 'progress'))
+  const plannedItems = parseToDoList(pick('To-Do List', 'toDoList', 'plannedItems'))
 
   return {
     dayNum,
     date: pick('Date', 'date') || fallback.date,
-    mainTasks: String(pick('Main Tasks / Planned To-Dos', 'mainTasks', 'main tasks')),
+    mainTasks: String(pick('Main Tasks', 'mainTasks', 'main tasks', 'Main Tasks / Planned To-Dos')),
+    plannedItems,
     status: String(pick('Status', 'status')),
     progress: Number.isFinite(progress) ? Math.min(Math.max(progress, 0), 100) : 0,
     details: String(pick('Details / Log', 'details', 'details / log')),
@@ -335,6 +349,7 @@ export function mergeRemote(localDays, remoteEntries, { isBlank } = {}) {
       remote.details ||
       remote.notes ||
       remote.progress > 0 ||
+      remote.plannedItems.length > 0 ||
       (remote.status && remote.status !== 'Not Started')
 
     const localIsBlank = isBlank ? isBlank(target) : true
@@ -344,6 +359,9 @@ export function mergeRemote(localDays, remoteEntries, { isBlank } = {}) {
     merged[index] = {
       ...target,
       mainTasks: remote.mainTasks || target.mainTasks,
+      // A plan is remote content in its own right: a day whose only record is
+      // a checklist must not be skipped as empty.
+      plannedItems: remote.plannedItems.length ? remote.plannedItems : target.plannedItems,
       // The remote status is the user's last recorded intent, not a derived
       // value: applyStatus recomputes it on the way to the screen.
       status: remote.status || target.status,

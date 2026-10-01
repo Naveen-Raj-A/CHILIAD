@@ -17,10 +17,10 @@ function csvCell(value) {
 export const CSV_COLUMNS = [
   'Day',
   'Date',
+  'Main Tasks',
+  'To-Do List',
   'Status',
   'Progress %',
-  'Main Tasks',
-  'Planned Items',
   'Details / Log',
   'Notes',
   'Tags',
@@ -31,14 +31,15 @@ export const CSV_COLUMNS = [
 export function buildCsv(days, tagsForDay) {
   const header = CSV_COLUMNS.join(',')
 
+  // Same column order as the sheet, so the two exports line up field by field.
   const rows = days.map((day) =>
     [
       day.dayNum,
       day.date,
-      day.status,
-      day.progress,
       day.mainTasks,
       planToText(day.plannedItems),
+      day.status,
+      day.progress,
       day.details,
       day.notes,
       tagsForDay ? tagsForDay(day).map((t) => `#${t}`).join(' ') : '',
