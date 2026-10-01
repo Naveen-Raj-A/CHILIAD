@@ -59,3 +59,32 @@ export function dateForDay(startISO, dayNum) {
   start.setDate(start.getDate() + (dayNum - 1))
   return toISODate(start)
 }
+
+/**
+ * Shift an ISO date by `days`, using the same local-time arithmetic as
+ * `dateForDay` so a DST transition can never land on the wrong calendar day.
+ */
+export function addDaysISO(iso, days) {
+  const date = fromISODate(iso)
+  date.setDate(date.getDate() + days)
+  return toISODate(date)
+}
+
+/** Whole days between two ISO dates, immune to DST because it compares Y/M/D. */
+export function daysBetweenISO(fromISO, toISO) {
+  const a = fromISODate(fromISO)
+  const b = fromISODate(toISO)
+  const utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())
+  const utcB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())
+  return Math.round((utcB - utcA) / 86400000)
+}
+
+/**
+ * The journey day number for an ISO date, or `null` when the date falls
+ * outside the 1,000-day window.
+ */
+export function dayNumForDate(iso, startISO = JOURNEY_START_ISO) {
+  if (!iso) return null
+  const dayNum = daysBetweenISO(startISO, iso) + 1
+  return dayNum >= 1 && dayNum <= TOTAL_DAYS ? dayNum : null
+}

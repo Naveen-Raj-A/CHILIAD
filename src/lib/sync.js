@@ -7,6 +7,8 @@
  * degrades the app to pure-local behaviour instead of breaking it.
  */
 
+import { sanitizePlanItems } from './plan'
+
 /** The backend endpoint. */
 export const SYNC_ENDPOINT = '/api/sync'
 
@@ -29,6 +31,7 @@ export const PENDING_QUEUE_KEY = 'chiliad_pending_sync'
 export const SYNC_STATUS = {
   SYNCED: 'SYNCED',
   SAVING: 'SAVING',
+  LOCAL: 'LOCAL',
   OFFLINE: 'OFFLINE',
   ERROR: 'ERROR',
 }
@@ -226,11 +229,12 @@ export async function flushQueue() {
 /**
  * Merge remote records with local days.
  *
- * Local content always wins: a remote record only fills days that are still
- * blank locally. This makes a background refresh non-destructive - it can
- * never clobber unsynced local work, which would be data loss.
+ * Local content always wins: a remote record only fills days that hold no
+ * local intent. This makes a background refresh non-destructive - it can never
+ * clobber unsynced local work, which would be data loss. `isBlank` is injected
+ * so this module stays free of a dependency on the journey model.
  */
-export function mergeRemote(localDays, remoteEntries, { isLogged } = {}) {
+export function mergeRemote(localDays, remoteEntries, { isBlank } = {}) {
   const merged = localDays.map((day) => ({ ...day }))
   let applied = 0
 
@@ -240,14 +244,16 @@ export function mergeRemote(localDays, remoteEntries, { isLogged } = {}) {
     const target = merged[index]
     if (!target) return
 
+    const remotePlan = sanitizePlanItems(remote.plannedItems)
     const remoteHasContent =
       remote.mainTasks ||
       remote.details ||
       remote.notes ||
       Number(remote.progress) > 0 ||
+      remotePlan.length > 0 ||
       (remote.status && remote.status !== 'Not Started')
 
-    const localIsBlank = isLogged ? !isLogged(target) : true
+    const localIsBlank = isBlank ? isBlank(target) : true
 
     if (!remoteHasContent || !localIsBlank) return
 
@@ -258,6 +264,7 @@ export function mergeRemote(localDays, remoteEntries, { isLogged } = {}) {
       progress: Number(remote.progress) || 0,
       details: remote.details || target.details,
       notes: remote.notes || target.notes,
+      plannedItems: remotePlan.length ? remotePlan : target.plannedItems,
     }
     applied += 1
   })

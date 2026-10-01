@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { cn } from '../lib/cn'
 import { collectTags } from '../lib/tags'
 import { COMPLETED_STATUSES } from '../lib/status'
@@ -145,13 +145,34 @@ function Legend({ items }) {
 }
 
 /**
+ * The current local hour, read outside render and refreshed each minute.
+ *
+ * The clock cannot be read during render: `Date` is impure, so a re-render
+ * could otherwise produce a different hour than the one the strip was drawn
+ * with. `null` means "not read yet", which the clock strip renders as no
+ * highlighted hour rather than guessing.
+ */
+function useCurrentHour() {
+  const [hour, setHour] = useState(null)
+
+  useEffect(() => {
+    const read = () => setHour(new Date().getHours())
+    read()
+    const timer = setInterval(read, 60000)
+    return () => clearInterval(timer)
+  }, [])
+
+  return hour
+}
+
+/**
  * Day panel: today's detailed focus breakdown.
  * Progress donut, logged-field coverage, and a 24-hour clock strip showing
  * where the current day sits inside its hourly window.
  */
 function DayPanel({ entry, todayISO }) {
   const now = fromISODate(todayISO)
-  const hourNow = new Date().getHours()
+  const hourNow = useCurrentHour()
   const fieldsLogged = [entry?.mainTasks, entry?.details, entry?.notes].filter(
     (text) => text && text.trim(),
   ).length
@@ -211,24 +232,34 @@ function DayPanel({ entry, todayISO }) {
               title={`${String(hour).padStart(2, '0')}:00`}
               className={cn(
                 'h-5 rounded-sm border',
-                hour < hourNow
-                  ? 'border-sky-500/40 bg-sky-500/60'
-                  : hour === hourNow
-                    ? 'border-emerald-500/70 bg-emerald-500/70'
-                    : 'border-edge bg-surface',
+                hourNow === null
+                  ? 'border-edge bg-surface'
+                  : hour < hourNow
+                    ? 'border-sky-500/40 bg-sky-500/60'
+                    : hour === hourNow
+                      ? 'border-emerald-500/70 bg-emerald-500/70'
+                      : 'border-edge bg-surface',
               )}
             />
           ))}
         </div>
         <div className="flex items-center justify-between text-2xs text-ink-muted">
           <span>00:00</span>
-          <span className="text-emerald-400">now · {String(hourNow).padStart(2, '0')}:00</span>
+          {hourNow !== null ? (
+            <span className="text-emerald-400">
+              now · {String(hourNow).padStart(2, '0')}:00
+            </span>
+          ) : (
+            <span>reading clock…</span>
+          )}
           <span>24:00</span>
         </div>
-        <p className="text-2xs text-ink-muted">
-          {23 - hourNow} hours remain in the active day. The day stays editable until
-          midnight, then becomes read-only.
-        </p>
+        {hourNow !== null && (
+          <p className="text-2xs text-ink-muted">
+            {23 - hourNow} hours remain in the active day. The day stays editable until
+            midnight, then becomes read-only.
+          </p>
+        )}
       </div>
     </div>
   )

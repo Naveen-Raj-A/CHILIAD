@@ -1,10 +1,12 @@
 import SyncBadge from './SyncBadge'
+import ViewSheetButton from './ViewSheetButton'
 import { TOTAL_DAYS } from '../lib/date'
 
 /**
- * View headline: "Day {n} of 1,000" plus the live sync status badge.
+ * View headline: "Day {n} of 1,000" plus the live sync status badge and the
+ * shortcut to the backing Google Sheet.
  */
-export default function Headline({ dayNum, syncStatus = 'OFFLINE', pendingCount = 0, subtitle }) {
+export default function Headline({ dayNum, syncStatus = 'LOCAL', pendingCount = 0, subtitle }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
@@ -20,7 +22,10 @@ export default function Headline({ dayNum, syncStatus = 'OFFLINE', pendingCount 
         </h1>
       </div>
 
-      <SyncBadge status={syncStatus} pending={pendingCount} />
+      <div className="flex items-center gap-2">
+        <SyncBadge status={syncStatus} pending={pendingCount} />
+        <ViewSheetButton />
+      </div>
     </div>
   )
 }

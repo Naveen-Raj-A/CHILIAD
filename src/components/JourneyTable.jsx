@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Eye, Lock, Pencil } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Lock, Pencil } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 import { cn } from '../lib/cn'
 import { formatShortDate } from '../lib/date'
-import { LOCK_FUTURE, LOCK_PAST, lockState } from '../lib/lock'
+import { LOCK_FUTURE, lockState } from '../lib/lock'
 
 const PAGE_SIZE = 25
+
+/** Shown in an empty cell. A real character: JSX text does not expand \uXXXX. */
+const EM_DASH = '\u2014'
 
 const COLUMNS = [
   'Day',
@@ -133,23 +136,31 @@ export default function JourneyTable({
           <tbody>
             {visible.map((day) => {
               const isSelected = day.dayNum === selectedDayNum
+              const isFuture = lockState(day, todayISO) === LOCK_FUTURE
               return (
                 <tr
                   key={day.dayNum}
-                  onClick={() => onSelectDay(day.dayNum)}
+                  onClick={() => {
+                    if (isFuture) return
+                    onSelectDay(day.dayNum)
+                  }}
                   tabIndex={0}
                   aria-selected={isSelected}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      onSelectDay(day.dayNum)
-                    }
+                    if (event.key !== 'Enter' && event.key !== ' ') return
+                    event.preventDefault()
+                    if (!isFuture) onSelectDay(day.dayNum)
                   }}
                   className={cn(
-                    'cursor-pointer border-b border-edge/70 transition-colors',
-                    isSelected
-                      ? 'bg-surface-hover'
-                      : 'hover:bg-surface-hover/60 focus:bg-surface-hover/60 focus:outline-none',
+                    'border-b border-edge/70 transition-colors',
+                    isFuture
+                      ? 'bg-surface-input/40 text-ink-muted opacity-60'
+                      : cn(
+                          'cursor-pointer',
+                          isSelected
+                            ? 'bg-surface-hover'
+                            : 'hover:bg-surface-hover/60 focus:bg-surface-hover/60 focus:outline-none',
+                        ),
                   )}
                 >
                   <Cell className="font-mono text-xs tabular-nums text-ink-secondary">
@@ -159,7 +170,7 @@ export default function JourneyTable({
                     {formatShortDate(day.date)}
                   </Cell>
                   <Cell className="max-w-64 truncate text-ink">
-                    {day.mainTasks || <span className="text-ink-muted">\u2014</span>}
+                    {day.mainTasks || <span className="text-ink-muted">{EM_DASH}</span>}
                   </Cell>
                   <Cell>
                     <StatusBadge status={day.status} />
@@ -168,17 +179,25 @@ export default function JourneyTable({
                     <ProgressCell value={day.progress} />
                   </Cell>
                   <Cell className="max-w-72 truncate text-xs text-ink-secondary">
-                    {day.details || <span className="text-ink-muted">\u2014</span>}
+                    {day.details || <span className="text-ink-muted">{EM_DASH}</span>}
                   </Cell>
                   <Cell className="max-w-64 truncate text-xs text-ink-secondary">
-                    {day.notes || <span className="text-ink-muted">\u2014</span>}
+                    {day.notes || <span className="text-ink-muted">{EM_DASH}</span>}
                   </Cell>
                   <Cell>
-                    <Pencil
-                      className="h-3.5 w-3.5 text-ink-muted"
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
+                    {isFuture ? (
+                      <Lock
+                        className="h-3.5 w-3.5 text-ink-muted"
+                        strokeWidth={2}
+                        aria-label="Locked — future date"
+                      />
+                    ) : (
+                      <Pencil
+                        className="h-3.5 w-3.5 text-ink-muted"
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      />
+                    )}
                   </Cell>
                 </tr>
               )

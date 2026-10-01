@@ -5,10 +5,11 @@ import CommandPalette from './components/CommandPalette'
 import DashboardView from './components/views/DashboardView'
 import DailyTrackerView from './components/views/DailyTrackerView'
 import GridView from './components/views/GridView'
+import TomorrowPlannerView from './components/views/TomorrowPlannerView'
 import AnalyticsView from './components/views/AnalyticsView'
 import SettingsView from './components/views/SettingsView'
 import { computeStats } from './lib/stats'
-import { isLogged } from './lib/journey'
+import { isBlank, promoteToday } from './lib/journey'
 import {
   SYNC_STATUS,
   fetchRemote,
@@ -18,7 +19,9 @@ import {
   pushEntry,
   queueSize,
 } from './lib/sync'
-import { toISODate } from './lib/date'
+import { addDaysISO, dayNumForDate, toISODate, TOTAL_DAYS } from './lib/date'
+import { planProgressPct, sanitizePlanItems } from './lib/plan'
+import useTodayISO from './hooks/useTodayISO'
 import {
   blankJourney,
   clearJourney,
@@ -37,22 +40,40 @@ const VIEWS = {
   dashboard: DashboardView,
   tracker: DailyTrackerView,
   grid: GridView,
+  planner: TomorrowPlannerView,
   analytics: AnalyticsView,
   settings: SettingsView,
 }
 
 export default function App() {
-  // Resolved once on mount: the journey is anchored to the day it was opened.
-  const [todayISO] = useState(() => toISODate(new Date()))
+  // Kept live rather than read once: when the calendar day rolls over, the
+  // planner's writable target, the edit lock, and the streak counters all have
+  // to follow it. Tomorrow is derived from this single value, never from a
+  // second clock read, so the two can never disagree about which day the
+  // planner may write to.
+  const todayISO = useTodayISO()
+  const tomorrowISO = useMemo(() => addDaysISO(todayISO, 1), [todayISO])
 
-  const [days, setDays] = useState(loadJourney)
-  // Day 1 is the starting point on a fresh journey.
-  const [selectedDayNum, setSelectedDayNum] = useState(1)
+  // The stored record. `days` below is what the app presents.
+  const [storedDays, setStoredDays] = useState(loadJourney)
+
+  // Midnight roll-over, derived during render: the date that just became today
+  // is presented as "In Progress" instead of "Not Started". Nothing is written
+  // back here, so there is no second copy of the truth and no cascading render
+  // - the persist effect below stores the promoted record. A promoted day is
+  // not treated as logged activity: see `isLogged`.
+  const days = useMemo(() => promoteToday(storedDays, todayISO), [storedDays, todayISO])
+
+  // Open on today, clamped into the window. Hardcoding Day 1 would drop the
+  // user on a read-only past day as soon as real time moved past the start.
+  const [selectedDayNum, setSelectedDayNum] = useState(() =>
+    Math.min(Math.max(dayNumForDate(toISODate(new Date())) ?? 1, 1), TOTAL_DAYS),
+  )
   const [activeView, setActiveView] = useState(DEFAULT_VIEW)
   const [toast, setToast] = useState(null)
-  const [syncStatus, setSyncStatus] = useState(
-    isOnline() ? SYNC_STATUS.SYNCED : SYNC_STATUS.OFFLINE,
-  )
+  // Starts as SAVING so the first paint never claims a sync that has not
+  // happened yet; the bootstrap effect settles it within a moment.
+  const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.SAVING)
   const [pendingCount, setPendingCount] = useState(() => queueSize())
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
 
@@ -87,7 +108,7 @@ export default function App() {
 
       setSyncStatus(SYNC_STATUS.SAVING)
 
-      const flushed = await flushQueue()
+      await flushQueue()
       if (cancelled) return
       setPendingCount(queueSize())
 
@@ -95,14 +116,14 @@ export default function App() {
       if (cancelled) return
 
       if (!remote.ok) {
-        // A missing backend is expected in local-only use; degrade quietly.
-        setSyncStatus(
-          flushed.pushed > 0 ? SYNC_STATUS.SYNCED : SYNC_STATUS.OFFLINE,
-        )
+        // A missing or unreachable backend is expected in local-only use.
+        // This is LOCAL MODE, not an error and not an offline device: the
+        // journey is fully persisted and every feature still works.
+        setSyncStatus(SYNC_STATUS.LOCAL)
         return
       }
 
-      setDays((prev) => mergeRemote(prev, remote.entries, { isLogged }).days)
+          setStoredDays((prev) => mergeRemote(prev, remote.entries, { isBlank }).days)
       setSyncStatus(SYNC_STATUS.SYNCED)
     }
 
@@ -167,7 +188,7 @@ export default function App() {
     }
   }, [notify])
 
-  const stats = useMemo(() => computeStats(days), [days])
+  const stats = useMemo(() => computeStats(days, todayISO), [days, todayISO])
   const currentEntry = days[selectedDayNum - 1]
   const ActiveView = VIEWS[activeView] ?? DashboardView
 
@@ -195,11 +216,20 @@ export default function App() {
 
       const clamped = {
         ...entry,
+        plannedItems: sanitizePlanItems(entry.plannedItems),
         progress: Math.min(Math.max(Number(entry.progress) || 0, 0), 100),
       }
 
+      // A planned day owns its own progress: completion is derived from the
+      // checklist so ticking an item moves the heatmap and the stats without
+      // a second set of numbers to keep in sync. Days with no plan keep the
+      // manual percentage.
+      if (clamped.plannedItems.length > 0) {
+        clamped.progress = planProgressPct(clamped.plannedItems)
+      }
+
       // 1. Local first, so the UI reflects the save instantly and offline.
-      setDays((prev) => {
+      setStoredDays((prev) => {
         const next = [...prev]
         next[clamped.dayNum - 1] = { ...next[clamped.dayNum - 1], ...clamped }
         return next
@@ -223,6 +253,56 @@ export default function App() {
         })
     },
     [notify, todayISO],
+  )
+
+  /**
+   * Write the Tomorrow Planner's checklist.
+   *
+   * The only write path allowed to touch a future day, and it is deliberately
+   * narrow: the target must be exactly tomorrow, and only `plannedItems` may
+   * change. A future day's tasks, log, status, progress, and notes are left
+   * alone, and the history stays immutable because no other date is reachable
+   * from here. Progress is never derived here either - tomorrow's completion
+   * is unknown until the day actually arrives.
+   */
+  const handleSavePlan = useCallback(
+    (dayNum, plannedItems) => {
+      const target = days[dayNum - 1]
+      if (!target || target.date !== tomorrowISO) {
+        notify({
+          tone: 'error',
+          message: 'Plans can only be written for tomorrow.',
+        })
+        return
+      }
+
+      const clean = sanitizePlanItems(plannedItems)
+      const updated = { ...target, plannedItems: clean }
+
+      setStoredDays((prev) => {
+        const next = [...prev]
+        next[dayNum - 1] = updated
+        return next
+      })
+
+      // Pushed on the same path as a normal save so the offline queue and the
+      // sync badge behave identically for planned writes.
+      setSyncStatus(SYNC_STATUS.SAVING)
+      pushEntry(updated)
+        .then((result) => {
+          setPendingCount(queueSize())
+          if (result.ok) {
+            setSyncStatus(SYNC_STATUS.SYNCED)
+          } else {
+            setSyncStatus(isOnline() ? SYNC_STATUS.ERROR : SYNC_STATUS.OFFLINE)
+          }
+        })
+        .catch(() => {
+          setSyncStatus(SYNC_STATUS.ERROR)
+          setPendingCount(queueSize())
+        })
+    },
+    [days, notify, tomorrowISO],
   )
 
   /**
@@ -303,14 +383,14 @@ export default function App() {
 
   const handleImport = useCallback(
     (imported) => {
-      setDays(imported)
+      setStoredDays(imported)
     },
     [],
   )
 
   const handleReset = useCallback(() => {
     clearJourney()
-    setDays(blankJourney())
+    setStoredDays(blankJourney())
     setSelectedDayNum(1)
   }, [])
 
@@ -319,9 +399,11 @@ export default function App() {
     days,
     stats,
     todayISO,
+    tomorrowISO,
     selectedDayNum,
     onSelectDay: handleSelectDay,
     onSave: handleSave,
+    onSavePlan: handleSavePlan,
     currentEntry,
     onNavigate: setActiveView,
     onOpenInTracker: handleOpenInTracker,
@@ -348,11 +430,6 @@ export default function App() {
         syncStatus={syncStatus}
         pendingCount={pendingCount}
         onOpenSearch={() => setIsPaletteOpen(true)}
-        todos={todos}
-        onAddTodo={handleAddTodo}
-        onToggleTodo={handleToggleTodo}
-        onRemoveTodo={handleRemoveTodo}
-        onEditTodo={handleEditTodo}
       />
 
       {/* Fills the full canvas: flex-column that stretches to fill viewport */}

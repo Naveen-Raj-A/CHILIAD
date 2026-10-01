@@ -1,10 +1,9 @@
-import { ChevronDown, Flame, ListTodo, Pencil, Search } from 'lucide-react'
-import { useState } from 'react'
+import { Flame, Pencil, Search } from 'lucide-react'
 import { NAV_ITEMS } from '../lib/nav'
 import { cn } from '../lib/cn'
 import { TOTAL_DAYS } from '../lib/date'
 import SyncBadge from './SyncBadge'
-import QuickTodos from './QuickTodos'
+import ViewSheetButton from './ViewSheetButton'
 
 /** Detect macOS so the shortcut hint matches the platform convention. */
 function detectMac() {
@@ -13,9 +12,11 @@ function detectMac() {
 }
 
 /**
- * Fixed left navigation rail: brand, active day pill, route links, the
- * sticky Quick To-Do List, and a footer holding the storage-mode indicator
- * plus the primary CTA.
+ * Fixed left navigation rail: brand, active day pill, the route links, and a
+ * footer holding the storage-mode indicator plus the primary CTA.
+ *
+ * The Tomorrow Planner is a route like any other rather than a footer widget,
+ * so planning and logging read as the same kind of destination.
  */
 export default function Sidebar({
   activeView,
@@ -25,15 +26,8 @@ export default function Sidebar({
   syncStatus,
   pendingCount,
   onOpenSearch,
-  todos,
-  onAddTodo,
-  onToggleTodo,
-  onRemoveTodo,
-  onEditTodo,
 }) {
   const isMac = detectMac()
-  const [todosOpen, setTodosOpen] = useState(true)
-  const openCount = todos.filter((task) => !task.done).length
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-edge bg-sidebar">
@@ -95,48 +89,12 @@ export default function Sidebar({
         })}
       </nav>
 
-      {/* Quick To-Do List (sticky section below the main links) */}
-      <div className="border-t border-edge px-3 py-3">
-        <button
-          type="button"
-          onClick={() => setTodosOpen((prev) => !prev)}
-          aria-expanded={todosOpen}
-          aria-controls="sidebar-todos"
-          className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-2xs font-semibold uppercase tracking-[0.12em] text-ink-secondary transition-colors hover:text-ink"
-        >
-          <ListTodo className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-          <span className="flex-1 text-left">Quick To-Do List</span>
-          <span className="rounded-full bg-surface-input px-2 py-0.5 text-2xs tabular-nums text-ink-muted">
-            {openCount}
-          </span>
-          <ChevronDown
-            aria-hidden="true"
-            className={cn(
-              'h-3.5 w-3.5 shrink-0 text-ink-muted transition-transform duration-200',
-              todosOpen ? 'rotate-180' : 'rotate-0',
-            )}
-            strokeWidth={2}
-          />
-        </button>
-
-        {todosOpen && (
-          <div id="sidebar-todos" className="mt-2 max-h-64 overflow-y-auto pr-0.5">
-            <QuickTodos
-              todos={todos}
-              onAdd={onAddTodo}
-              onToggle={onToggleTodo}
-              onRemove={onRemoveTodo}
-              onEdit={onEditTodo}
-              variant="sidebar"
-              showHeader={false}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="space-y-3 border-t border-edge px-5 py-4">
+      {/* Footer. Stacked, not side by side: at 256px the rail cannot hold a
+          status pill and a labelled action on one row without squeezing the
+          labels, and a wrapped or clipped pill reads as a broken control. */}
+      <div className="space-y-2 border-t border-edge px-5 py-4">
         <SyncBadge status={syncStatus} pending={pendingCount} className="w-full justify-center" />
+        <ViewSheetButton className="w-full" />
 
         <button
           type="button"

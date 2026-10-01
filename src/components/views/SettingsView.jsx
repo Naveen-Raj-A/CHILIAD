@@ -17,6 +17,8 @@ import {
 } from '../../lib/storage'
 import { buildCsv } from '../../lib/csv'
 import { tagsForDay } from '../../lib/tags'
+import { GOOGLE_SHEET_URL, hasSheetUrl } from '../../lib/config'
+import ViewSheetButton from '../ViewSheetButton'
 import { TOTAL_DAYS, formatShortDate } from '../../lib/date'
 
 /**
@@ -138,6 +140,30 @@ export default function SettingsView({ days, stats, onImport, onReset, onNotify 
             {STORAGE_KEY}
           </code>
         </p>
+      </section>
+
+      {/* Cloud sheet */}
+      <section className="card p-5" aria-labelledby="sheet-heading">
+        <h2
+          id="sheet-heading"
+          className="text-sm font-semibold uppercase tracking-[0.12em] text-ink-secondary"
+        >
+          Google Sheet
+        </h2>
+        <p className="mt-1 text-xs text-ink-muted">
+          {hasSheetUrl()
+            ? 'The sheet mirroring this journey. It opens in a new tab.'
+            : 'No sheet is configured. Set VITE_GOOGLE_SHEET_URL to enable the link.'}
+        </p>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <ViewSheetButton label="View Google Sheet" className="px-4 py-2" />
+          {hasSheetUrl() && (
+            <code className="min-w-0 break-all rounded bg-surface-input px-1.5 py-0.5 font-mono text-2xs text-ink-secondary">
+              {GOOGLE_SHEET_URL}
+            </code>
+          )}
+        </div>
       </section>
 
       {/* Backup / restore */}

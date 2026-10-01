@@ -8,8 +8,12 @@ export const MILESTONE_SIZE = 100
 /**
  * Compute every derived metric the dashboard needs in a single pass.
  * Kept as one function so the three views never disagree on the numbers.
+ *
+ * `todayISO` anchors the streak counters. Without it they would walk in from
+ * Day 1000 - a day that is always blank until the journey is over - and
+ * report zero forever.
  */
-export function computeStats(days) {
+export function computeStats(days, todayISO) {
   let completed = 0
   let inProgress = 0
   let notStarted = 0
@@ -25,7 +29,7 @@ export function computeStats(days) {
     progressSum += day.progress
   }
 
-  const currentStreak = computeCurrentStreak(days)
+  const currentStreak = computeCurrentStreak(days, todayISO)
   const longestStreak = computeLongestStreak(days)
 
   return {
@@ -47,12 +51,24 @@ export function computeStats(days) {
 }
 
 /**
- * Consecutive logged days counting back from the most recent logged day.
- * With an empty journey this is 0, which is the correct answer.
+ * Consecutive logged days ending today.
+ *
+ * A day that has not been written yet does not break the run: an untouched
+ * morning still reports the streak built up through yesterday, and only resets
+ * once a whole day is missed. Reporting 0 until the first entry of each day
+ * would be technically defensible and practically useless.
+ *
+ * Outside the journey window the answer is 0.
  */
-function computeCurrentStreak(days) {
+function computeCurrentStreak(days, todayISO) {
+  let index = todayISO ? days.findIndex((day) => day.date === todayISO) : -1
+  if (index === -1) return 0
+
+  // Today has not been logged yet, so the run belongs to the day before it.
+  if (!isLogged(days[index])) index -= 1
+
   let streak = 0
-  for (let i = days.length - 1; i >= 0; i -= 1) {
+  for (let i = index; i >= 0; i -= 1) {
     if (isLogged(days[i])) streak += 1
     else break
   }

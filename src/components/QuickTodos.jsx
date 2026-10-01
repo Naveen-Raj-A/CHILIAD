@@ -5,11 +5,9 @@ import { cn } from '../lib/cn'
 /**
  * Shared interactive quick to-do widget.
  *
- * Rendered by the Sidebar (compact variant), the Dashboard's "Today's Quick
- * Action Items" card, and the Daily Tracker. All instances read the same
- * App-level `todos` state, so completing, editing, adding, or deleting a
- * task in one place updates every other instance on the same render - no
- * refresh required.
+ * Reads the App-level `todos` state, so completing, editing, adding, or
+ * deleting a task anywhere updates every other instance on the same render - no
+ * refresh required. Surfaced on the Dashboard as today's quick actions.
  *
  * Tasks themselves are persisted to localStorage by App (see lib/todos).
  */
@@ -19,7 +17,6 @@ export default function QuickTodos({
   onToggle,
   onRemove,
   onEdit,
-  variant = 'sidebar',
   title = 'Quick To-Do List',
   showHeader = true,
 }) {
@@ -27,7 +24,6 @@ export default function QuickTodos({
   const [editingId, setEditingId] = useState(null)
   const [editDraft, setEditDraft] = useState('')
 
-  const isSidebar = variant === 'sidebar'
   const remaining = todos.filter((task) => !task.done).length
 
   const handleAdd = (event) => {
@@ -56,15 +52,10 @@ export default function QuickTodos({
   }
 
   return (
-    <div className={cn(!isSidebar && 'card p-5')}>
+    <div className="card p-5">
       {showHeader && (
         <div className="flex items-center justify-between gap-2">
-          <h2
-            className={cn(
-              'flex items-center gap-2 font-semibold uppercase tracking-[0.12em] text-ink-secondary',
-              isSidebar ? 'text-2xs' : 'text-sm',
-            )}
-          >
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-ink-secondary">
             <ListTodo className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden="true" />
             {title}
           </h2>
@@ -77,36 +68,30 @@ export default function QuickTodos({
       )}
 
       {/* Fast capture: Enter or the + button adds instantly. */}
-      <form
-        onSubmit={handleAdd}
-        className={cn('flex items-center gap-2', showHeader ? 'mt-3' : isSidebar ? 'mt-2' : 'mt-3')}
-      >
-        <label className="sr-only" htmlFor={`quick-todo-${variant}`}>
+      <form onSubmit={handleAdd} className="mt-3 flex items-center gap-2">
+        <label className="sr-only" htmlFor="quick-todo">
           Add quick task
         </label>
         <input
-          id={`quick-todo-${variant}`}
+          id="quick-todo"
           type="text"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           placeholder="Add quick task..."
           maxLength={200}
-          className={cn('field', isSidebar && 'px-2.5 py-1.5 text-xs')}
+          className="field"
         />
         <button
           type="submit"
           disabled={!draft.trim()}
           aria-label="Add task"
-          className={cn(
-            'inline-flex shrink-0 items-center justify-center rounded-lg bg-ink text-obsidian transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-40',
-            isSidebar ? 'h-7 w-7' : 'h-9 w-9',
-          )}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ink text-obsidian transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Plus className={isSidebar ? 'h-3.5 w-3.5' : 'h-4 w-4'} strokeWidth={2.25} />
+          <Plus className="h-4 w-4" strokeWidth={2.25} />
         </button>
       </form>
 
-      <ul className={cn('mt-2 space-y-1.5', !isSidebar && 'mt-3')}>
+      <ul className="mt-3 space-y-1.5">
         {todos.length === 0 && (
           <li className="rounded-lg border border-dashed border-edge px-3 py-3 text-center text-2xs text-ink-muted">
             No tasks yet - add one above.

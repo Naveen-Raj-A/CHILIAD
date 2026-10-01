@@ -21,9 +21,3 @@ export const STATUS_STYLES = {
   Completed: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
   Done: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
 }
-
-/** Accent style for the small sync/notification pill in the headline. */
-export const SYNC_STYLES = {
-  live: 'bg-emerald-500/20 text-emerald-400',
-  local: 'bg-neutral-800 text-neutral-400',
-}
