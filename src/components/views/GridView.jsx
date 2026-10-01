@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import Headline from '../Headline'
+import PeriodAnalytics from '../PeriodAnalytics'
 import Heatmap from '../Heatmap'
 import SearchFilterBar from '../SearchFilterBar'
 import JourneyTable from '../JourneyTable'
@@ -8,13 +9,22 @@ import { collectTags, filterByTag } from '../../lib/tags'
 import { cn } from '../../lib/cn'
 
 /**
- * 1,000-Day Grid: the full visual heatmap matrix plus the searchable,
- * paginated journey window table. Both read from the same filtered set, so
- * the grid and the table can never disagree.
+ * 1,000-Day Grid: the period analytics bar (Day/Week/Month/Year) at the
+ * top, then the full visual heatmap matrix plus the searchable, paginated
+ * journey window table. Both read from the same filtered set, so the grid
+ * and the table can never disagree.
  *
- * Selecting a day routes to the tracker with that day loaded.
+ * Selecting a day routes to the tracker with that day loaded; future days
+ * are locked upstream in App and never open.
  */
-export default function GridView({ days, selectedDayNum, onOpenInTracker, syncStatus, pendingCount }) {
+export default function GridView({
+  days,
+  todayISO,
+  selectedDayNum,
+  onOpenInTracker,
+  syncStatus,
+  pendingCount,
+}) {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('All')
   const [activeTag, setActiveTag] = useState('All')
@@ -39,8 +49,12 @@ export default function GridView({ days, selectedDayNum, onOpenInTracker, syncSt
         subtitle="1,000-Day Grid"
       />
 
+      {/* Interactive period analytics: Day | Week | Month | Year */}
+      <PeriodAnalytics days={days} todayISO={todayISO} />
+
       <Heatmap
         days={days}
+        todayISO={todayISO}
         selectedDayNum={selectedDayNum}
         onSelectDay={handleSelectDay}
       />
@@ -93,6 +107,7 @@ export default function GridView({ days, selectedDayNum, onOpenInTracker, syncSt
 
       <JourneyTable
         rows={rows}
+        todayISO={todayISO}
         selectedDayNum={selectedDayNum}
         onSelectDay={handleSelectDay}
       />

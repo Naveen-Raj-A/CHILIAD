@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, Lock, Pencil } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 import { cn } from '../lib/cn'
 import { formatShortDate } from '../lib/date'
+import { LOCK_FUTURE, LOCK_PAST, lockState } from '../lib/lock'
 
 const PAGE_SIZE = 25
 
@@ -44,10 +45,14 @@ function Cell({ children, className }) {
 
 /**
  * Paginated spreadsheet-style table over the (already filtered) day rows.
- * Selecting a row loads it into the edit drawer.
+ *
+ * Selecting a row loads it into the tracker. Future rows are hard-locked:
+ * they render dimmed with a lock indicator and never fire a selection.
+ * Past rows open read-only (view-only) and today's row is the editable one.
  */
 export default function JourneyTable({
   rows,
+  todayISO,
   selectedDayNum,
   onSelectDay,
   emptyMessage = 'No days match your current filters.',

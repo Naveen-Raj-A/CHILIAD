@@ -1,5 +1,6 @@
 import { cn } from '../lib/cn'
 import { COMPLETED_STATUSES } from '../lib/status'
+import { lockState, LOCK_FUTURE } from '../lib/lock'
 
 /**
  * Fill colour for a single day block.
@@ -21,9 +22,10 @@ const ROW_LABELS = [1, 101, 201, 301, 401, 501, 601, 701, 801, 901]
 
 /**
  * 1,000 colour-coded blocks, one per day, laid out in ten rows of 100.
- * Clicking a block selects that day.
+ * Clicking a block selects that day. Future days are hard-locked: they
+ * render disabled with a lock indicator and cannot be clicked at all.
  */
-export default function Heatmap({ days, selectedDayNum, onSelectDay }) {
+export default function Heatmap({ days, todayISO, selectedDayNum, onSelectDay }) {
   const rows = ROW_LABELS.map((start, index) =>
     days.slice(index * 100, index * 100 + 100),
   )
@@ -36,7 +38,7 @@ export default function Heatmap({ days, selectedDayNum, onSelectDay }) {
             Journey Heatmap
           </h2>
           <p className="mt-1 text-xs text-ink-muted">
-            All 1,000 days. Click any block to focus that day.
+            All 1,000 days. Click any block to focus that day — future days are locked.
           </p>
         </div>
 
@@ -47,6 +49,7 @@ export default function Heatmap({ days, selectedDayNum, onSelectDay }) {
             ['bg-sky-500/60', 'In progress'],
             ['bg-emerald-500/60', 'Partial'],
             ['bg-emerald-500', 'Complete'],
+            ['bg-edge-strong ring-1 ring-inset ring-neutral-600', 'Locked (future)'],
           ].map(([color, text]) => (
             <span key={text} className="inline-flex items-center gap-1.5">
               <span className={cn('h-2.5 w-2.5 rounded-sm', color)} />
@@ -65,18 +68,32 @@ export default function Heatmap({ days, selectedDayNum, onSelectDay }) {
             <div className="grid flex-1 grid-cols-25 gap-0.5 min-[640px]:grid-cols-50 lg:grid-cols-100">
               {row.map((day) => {
                 const isSelected = day.dayNum === selectedDayNum
+                const isFuture = lockState(day, todayISO) === LOCK_FUTURE
                 return (
                   <button
                     key={day.dayNum}
                     type="button"
+                    disabled={isFuture}
                     onClick={() => onSelectDay(day.dayNum)}
-                    title={`Day ${day.dayNum} - ${day.status}`}
-                    aria-label={`Day ${day.dayNum}, ${day.status}`}
+                    title={
+                      isFuture
+                        ? `Day ${day.dayNum} - locked (future date)`
+                        : `Day ${day.dayNum} - ${day.status}`
+                    }
+                    aria-label={
+                      isFuture
+                        ? `Day ${day.dayNum}, locked, future date`
+                        : `Day ${day.dayNum}, ${day.status}`
+                    }
                     aria-pressed={isSelected}
+                    aria-disabled={isFuture}
                     className={cn(
-                      'aspect-square rounded-sm transition-all hover:ring-1 hover:ring-white/60 focus:outline-none focus:ring-2 focus:ring-white/70',
+                      'aspect-square rounded-sm transition-all focus:outline-none focus:ring-2 focus:ring-white/70',
                       blockTone(day),
-                      isSelected && 'ring-2 ring-white ring-offset-1 ring-offset-surface',
+                      isFuture
+                        ? 'cursor-not-allowed border border-dashed border-neutral-600 bg-surface-input opacity-50'
+                        : 'hover:ring-1 hover:ring-white/60',
+                      !isFuture && isSelected && 'ring-2 ring-white ring-offset-1 ring-offset-surface',
                     )}
                   />
                 )

@@ -26,6 +26,8 @@ import {
   saveJourney,
 } from './lib/storage'
 import { DEFAULT_VIEW } from './lib/nav'
+import { LOCK_FUTURE, LOCK_TODAY, canOpen, lockState } from './lib/lock'
+import { createTodo, loadTodos, saveTodos } from './lib/todos'
 
 /**
  * Route table. `activeView` holds one of these ids; the sidebar and the
@@ -54,10 +56,19 @@ export default function App() {
   const [pendingCount, setPendingCount] = useState(() => queueSize())
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
 
+  // Global sidebar to-do list — shared by Sidebar, Dashboard and Tracker.
+  // Held at the top level so every view reacts to changes in the same render.
+  const [todos, setTodos] = useState(loadTodos)
+
   // Persist on every change so a refresh never loses edits.
   useEffect(() => {
     saveJourney(days)
   }, [days])
+
+  // Persist quick tasks under their own key, decoupled from the journey.
+  useEffect(() => {
+    saveTodos(todos)
+  }, [todos])
 
   /**
    * Background sync on load: drain anything queued from a previous offline
@@ -163,6 +174,25 @@ export default function App() {
   /** Commit a single day. Only called on an explicit Save. */
   const handleSave = useCallback(
     (entry) => {
+      // Strict lockdown: only the current active date accepts writes.
+      // Future days are prohibited outright; past days are read-only so no
+      // retroactive editing can slip through, even from a stale form.
+      const state = lockState(entry, todayISO)
+      if (state === LOCK_FUTURE) {
+        notify({
+          tone: 'error',
+          message: `Day ${entry.dayNum} is a future date — locked.`,
+        })
+        return
+      }
+      if (state !== LOCK_TODAY) {
+        notify({
+          tone: 'error',
+          message: `Day ${entry.dayNum} has ended — entries are read-only.`,
+        })
+        return
+      }
+
       const clamped = {
         ...entry,
         progress: Math.min(Math.max(Number(entry.progress) || 0, 0), 100),
@@ -192,7 +222,7 @@ export default function App() {
           setPendingCount(queueSize())
         })
     },
-    [notify],
+    [notify, todayISO],
   )
 
   /**
@@ -214,9 +244,61 @@ export default function App() {
   }, [days, todayISO])
 
   // Jump from the grid/table straight into the tracker for a given day.
-  const handleOpenInTracker = useCallback((dayNum) => {
-    setSelectedDayNum(dayNum)
-    setActiveView('tracker')
+  // Future dates cannot be opened at all; past dates open read-only.
+  const handleOpenInTracker = useCallback(
+    (dayNum) => {
+      const day = days[dayNum - 1]
+      if (day && !canOpen(day, todayISO)) {
+        notify({
+          tone: 'error',
+          message: `Day ${dayNum} is a future date — it stays locked until its day arrives.`,
+        })
+        return
+      }
+      setSelectedDayNum(dayNum)
+      setActiveView('tracker')
+    },
+    [days, todayISO, notify],
+  )
+
+  /**
+   * Central selection guard used by every view. Blocks future dates so a
+   * locked day can never be surfaced for editing anywhere in the app.
+   */
+  const handleSelectDay = useCallback(
+    (dayNum) => {
+      const day = days[dayNum - 1]
+      if (day && !canOpen(day, todayISO)) {
+        notify({
+          tone: 'error',
+          message: `Day ${dayNum} is a future date — locked.`,
+        })
+        return
+      }
+      setSelectedDayNum(dayNum)
+    },
+    [days, todayISO, notify],
+  )
+
+  /** Global to-do handlers — one source of truth for every surface. */
+  const handleAddTodo = useCallback((text) => {
+    setTodos((prev) => [createTodo(text), ...prev])
+  }, [])
+
+  const handleToggleTodo = useCallback((id) => {
+    setTodos((prev) =>
+      prev.map((task) => (task.id === id ? { ...task, done: !task.done } : task)),
+    )
+  }, [])
+
+  const handleRemoveTodo = useCallback((id) => {
+    setTodos((prev) => prev.filter((task) => task.id !== id))
+  }, [])
+
+  const handleEditTodo = useCallback((id, text) => {
+    setTodos((prev) =>
+      prev.map((task) => (task.id === id ? { ...task, text } : task)),
+    )
   }, [])
 
   const handleImport = useCallback(
@@ -238,7 +320,7 @@ export default function App() {
     stats,
     todayISO,
     selectedDayNum,
-    onSelectDay: setSelectedDayNum,
+    onSelectDay: handleSelectDay,
     onSave: handleSave,
     currentEntry,
     onNavigate: setActiveView,
@@ -248,6 +330,12 @@ export default function App() {
     onNotify: notify,
     syncStatus,
     pendingCount,
+    // Global to-do state shared by Dashboard and Daily Tracker.
+    todos,
+    onAddTodo: handleAddTodo,
+    onToggleTodo: handleToggleTodo,
+    onRemoveTodo: handleRemoveTodo,
+    onEditTodo: handleEditTodo,
   }
 
   return (
@@ -260,6 +348,11 @@ export default function App() {
         syncStatus={syncStatus}
         pendingCount={pendingCount}
         onOpenSearch={() => setIsPaletteOpen(true)}
+        todos={todos}
+        onAddTodo={handleAddTodo}
+        onToggleTodo={handleToggleTodo}
+        onRemoveTodo={handleRemoveTodo}
+        onEditTodo={handleEditTodo}
       />
 
       {/* Fills the full canvas: flex-column that stretches to fill viewport */}

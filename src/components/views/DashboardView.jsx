@@ -1,17 +1,20 @@
-import { CheckCircle2, Flame, Layers, Target } from 'lucide-react'
+import { CheckCircle2, Flame, Layers, Lock, Target } from 'lucide-react'
 import Headline from '../Headline'
 import StatCard from '../StatCard'
 import ProgressBar from '../ProgressBar'
 import ActiveFocusForm from '../ActiveFocusForm'
+import QuickTodos from '../QuickTodos'
 import { cn } from '../../lib/cn'
 import { COMPLETED_STATUSES } from '../../lib/status'
+import { LOCK_FUTURE, lockState } from '../../lib/lock'
 
 /** Days offered in the quick-jump grid. */
 const QUICK_JUMP_MAX = 50
 
 /**
  * Dashboard: executive summary, the active focus form for the current day,
- * and fast day-jump buttons for the first 50 days.
+ * the shared Quick To-Do widget, and fast day-jump buttons for the first
+ * 50 days (future days are locked).
  */
 export default function DashboardView({
   days,
@@ -24,6 +27,11 @@ export default function DashboardView({
   onNavigate,
   syncStatus,
   pendingCount,
+  todos,
+  onAddTodo,
+  onToggleTodo,
+  onRemoveTodo,
+  onEditTodo,
 }) {
   return (
     <div className="w-full space-y-6">
@@ -73,6 +81,17 @@ export default function DashboardView({
         </StatCard>
       </div>
 
+      {/* Today's Quick Action Items: same App-level todos as the sidebar */}
+      <QuickTodos
+        todos={todos}
+        onAdd={onAddTodo}
+        onToggle={onToggleTodo}
+        onRemove={onRemoveTodo}
+        onEdit={onEditTodo}
+        variant="card"
+        title="Today's Quick Action Items"
+      />
+
       {/* Active focus form */}
       <ActiveFocusForm
         key={selectedDayNum}
@@ -106,6 +125,21 @@ export default function DashboardView({
           {days.slice(0, QUICK_JUMP_MAX).map((day) => {
             const isSelected = day.dayNum === selectedDayNum
             const isComplete = COMPLETED_STATUSES.has(day.status)
+            const isFuture = lockState(day, todayISO) === LOCK_FUTURE
+            if (isFuture) {
+              return (
+                <button
+                  key={day.dayNum}
+                  type="button"
+                  disabled
+                  aria-label={`Day ${day.dayNum} — locked, future date`}
+                  title="Locked — future dates cannot be opened"
+                  className="flex cursor-not-allowed items-center justify-center gap-0.5 rounded-lg border border-edge bg-surface-input py-2 text-xs font-medium tabular-nums text-ink-muted opacity-50"
+                >
+                  <Lock className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
+                </button>
+              )
+            }
             return (
               <button
                 key={day.dayNum}
