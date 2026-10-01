@@ -2,9 +2,15 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      One brand mark, referenced for every icon slot. The dedicated multi-size
+      favicon.ico and apple-touch-icon.png still ship in public/ and stay
+      reachable at their conventional paths, so legacy discovery and iOS
+      home-screen installs still find a correctly-sized asset without being
+      hard-coded here.
+    -->
     <link rel="icon" type="image/png" href="/chiliad-logo.png" />
-    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" href="/chiliad-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#0e0e0e" />
@@ -12,7 +18,7 @@
       name="description"
       content="Chiliad — executive dashboard for a 1,000 day journey."
     />
-    <title>Chiliad — 1000 Day Journey</title>
+    <title>Chiliad — 1,000-Day OS</title>
   </head>
   <body>
     <div id="root"></div>

@@ -30,16 +30,16 @@ export default function Sidebar({
   const isMac = detectMac()
 
   return (
-    <aside className="flex h-full w-64 flex-shrink-0 flex-col border-r border-edge bg-sidebar">
+    <aside className="flex h-full w-64 flex-shrink-0 flex-col border-r border-edge bg-surface/50">
       {/* Brand */}
       <div className="flex-shrink-0 border-b border-edge px-5 py-5">
         <div className="flex items-center gap-2.5">
           <img
             src="/chiliad-logo.png"
-            alt=""
-            width={32}
-            height={32}
-            className="h-8 w-8 shrink-0 rounded-lg border border-edge object-contain"
+            alt="Chiliad OS Logo"
+            width={36}
+            height={36}
+            className="h-9 w-9 shrink-0 rounded-md border border-edge/40 bg-surface/80 object-contain p-0.5"
           />
           <div className="leading-tight">
             <p className="text-sm font-semibold tracking-tight text-ink">Chiliad</p>
@@ -102,7 +102,7 @@ export default function Sidebar({
           by side: at 256px the rail cannot hold a status pill and a labelled
           action on one row without squeezing the labels, and a clipped pill
           reads as a broken control. */}
-      <div className="mt-auto flex-shrink-0 space-y-2 border-t border-edge px-5 py-4">
+      <div className="mt-auto flex-shrink-0 space-y-2 border-t border-edge p-4">
         <SyncBadge status={syncStatus} pending={pendingCount} className="w-full justify-center" />
         <ViewSheetButton className="w-full" />
 

@@ -12,9 +12,11 @@ import { computeStats } from './lib/stats'
 import { applyStatus, isBlank } from './lib/journey'
 import {
   SYNC_STATUS,
+  clearQueue,
   fetchRemote,
   flushQueue,
   isOnline,
+  isSyncConfigured,
   mergeRemote,
   pushEntry,
   queueSize,
@@ -102,6 +104,16 @@ export default function App() {
     let cancelled = false
 
     async function runBackgroundSync() {
+      // A sheet URL that cannot accept a write settles the badge immediately,
+      // before any request. Queued writes from a previous session are dropped
+      // rather than retried forever against a destination that does not exist.
+      if (!isSyncConfigured()) {
+        clearQueue()
+        setPendingCount(0)
+        setSyncStatus(SYNC_STATUS.LOCAL)
+        return
+      }
+
       if (!isOnline()) {
         setSyncStatus(SYNC_STATUS.OFFLINE)
         setPendingCount(queueSize())
@@ -167,6 +179,16 @@ export default function App() {
     if (typeof window === 'undefined') return undefined
 
     async function handleOnline() {
+      // Reconnecting cannot help if there is nowhere to connect to. Bail out
+      // before the flush so this does not resolve to a SYNCED state that never
+      // actually synced anything.
+      if (!isSyncConfigured()) {
+        clearQueue()
+        setPendingCount(0)
+        setSyncStatus(SYNC_STATUS.LOCAL)
+        return
+      }
+
       const flushed = await flushQueue()
       setPendingCount(queueSize())
       setSyncStatus(flushed.failed > 0 ? SYNC_STATUS.ERROR : SYNC_STATUS.SYNCED)
@@ -245,6 +267,10 @@ export default function App() {
           setPendingCount(queueSize())
           if (result.ok) {
             setSyncStatus(SYNC_STATUS.SYNCED)
+          } else if (result.blocked) {
+            // The destination is known-unwritable, so nothing was attempted.
+            // This is a configuration state, not a failed write: LOCAL MODE.
+            setSyncStatus(SYNC_STATUS.LOCAL)
           } else {
             setSyncStatus(isOnline() ? SYNC_STATUS.ERROR : SYNC_STATUS.OFFLINE)
           }

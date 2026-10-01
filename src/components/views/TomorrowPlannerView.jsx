@@ -88,10 +88,19 @@ export default function TomorrowPlannerView({
     setEditDraft('')
   }
 
-  // Settled plans in strict chronological order: Day 1, Day 2, Day 3 ...
-  const history = days.filter(
-    (day) => day.date < todayISO && sanitizePlanItems(day.plannedItems).length > 0,
-  )
+  /**
+   * Settled plans, oldest first: Day 1, Day 2, Day 3 ...
+   *
+   * A day settles the moment its date is in the past, so the list is built by
+   * filtering on the date rather than on day number, then sorted explicitly.
+   * `days` already arrives in ascending order, so the sort is a no-op today —
+   * it is here to make the ordering a stated guarantee instead of an accident
+   * of how the caller happened to build the array.
+   */
+  const history = days
+    .filter((day) => day.date < todayISO && sanitizePlanItems(day.plannedItems).length > 0)
+    .slice()
+    .sort((a, b) => a.dayNum - b.dayNum)
 
   const progress = planProgressPct(items)
   const remaining = items.filter((item) => !item.done).length

@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/generate-icons.mjs && vite build",
-    "icons": "node scripts/generate-icons.mjs",
+    "build": "vite build",
+    "icons": "python scripts/build-icons.py",
     "lint": "oxlint",
     "preview": "vite preview"
   },

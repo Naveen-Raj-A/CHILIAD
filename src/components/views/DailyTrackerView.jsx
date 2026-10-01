@@ -67,6 +67,17 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
     onSave({ ...entry, plannedItems: nextItems })
   }
 
+  /**
+   * Drop a planned item and commit immediately.
+   *
+   * Removing the last item is allowed: the day simply falls back to a manual
+   * percentage rather than being stranded at 0 with an empty checklist.
+   */
+  const handleRemovePlanItem = (id) => {
+    if (!editable || !entry) return
+    onSave({ ...entry, plannedItems: planItems.filter((item) => item.id !== id) })
+  }
+
   const handleSave = () => {
     onSave({ ...values })
     setDraft(null)
@@ -219,9 +230,20 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
               </span>
             </div>
 
+            {/*
+              Hover quick actions. The checkbox is always clickable, but it is
+              a 16px target that requires precision; these are hover-revealed
+              affordances for finishing a line quickly without hunting for it.
+              They are hidden with `opacity-0` rather than removed so the row
+              never reflows on hover, and they surface on keyboard focus too,
+              so the shortcut is reachable without a pointer.
+            */}
             <ul className="mt-3 space-y-1.5">
               {planItems.map((item) => (
-                <li key={item.id} className="flex items-start gap-2">
+                <li
+                  key={item.id}
+                  className="group flex items-start gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-surface-hover/50"
+                >
                   <button
                     type="button"
                     role="checkbox"
@@ -247,6 +269,29 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
                   >
                     {item.text}
                   </span>
+
+                  {editable && (
+                    <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePlanItem(item.id)}
+                        title={item.done ? 'Reopen item' : 'Mark done'}
+                        aria-label={`${item.done ? 'Reopen' : 'Mark done'}: ${item.text}`}
+                        className="rounded p-1 text-ink-muted transition-colors hover:bg-surface-input hover:text-emerald-400"
+                      >
+                        <Check className="h-3 w-3" strokeWidth={2.5} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePlanItem(item.id)}
+                        title="Remove item"
+                        aria-label={`Remove: ${item.text}`}
+                        className="rounded p-1 text-ink-muted transition-colors hover:bg-surface-input hover:text-red-400"
+                      >
+                        <X className="h-3 w-3" strokeWidth={2.5} />
+                      </button>
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

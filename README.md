@@ -12,8 +12,8 @@ and `npm run build`.
 
 ```bash
 npm run dev      # dev server
-npm run build    # regenerate PWA icons, then production build
-npm run icons    # regenerate PWA icons only
+npm run build    # production build
+npm run icons    # regenerate the icon set from assets/chiliad-logo.jpg
 npm run preview  # serve the production build
 npm run lint     # oxlint
 ```
@@ -35,11 +35,13 @@ with an explanatory tooltip, and nothing is guessed. The constant lives in
 - **Dashboard** — read-only command center: macro metrics, today's status
   snapshot, the next queued plan, quick to-dos, and the global scratchpad.
 - **Daily Tracker** — the only day editor. Tasks, plan checklist, log, progress,
-  reflections.
+  reflections. Each checklist row reveals hover quick actions to mark it done,
+  reopen it, or remove it without aiming at the 16px checkbox.
 - **1,000-Day Grid** — period analytics, the full heatmap, and a searchable,
   filterable, paginated table.
-- **TO - DO** — forward planning. The next 30 days are offered as targets;
-  every plan that has settled is listed below in order, read-only.
+- **TO - DO** — forward planning. The next 30 days are offered as targets in a
+  date picker; every plan that has settled is listed below in chronological
+  order (Day 1, Day 2, Day 3 …), read-only.
 - **Analytics** — streaks, milestone velocity, status breakdown.
 - **Settings & Data** — JSON/CSV backup and restore, storage status, reset.
 
@@ -161,6 +163,30 @@ rather than breaking the app. The badge distinguishes:
 
 Failed writes queue locally and flush when connectivity returns.
 
+### Sync requires a writable endpoint
+
+Sync is opt-in and gated on `VITE_GOOGLE_SHEET_URL` being a **writable** Google
+Apps Script web app:
+
+```
+https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec
+```
+
+A `docs.google.com/spreadsheets/...` link opens fine in a browser but is a
+view-only page that rejects every POST. `classifySheetUrl` in
+`src/lib/config.js` recognises that case — along with an unset, malformed, or
+unrecognised URL — *before* any request is made. When the destination is
+unusable the app:
+
+- issues no `fetch()` at all, so no retry budget is spent per save;
+- sets the badge to `LOCAL MODE` (emerald), never `SYNC ERROR`;
+- clears `chiliad_pending_sync`, so a stale queue cannot keep reporting a
+  failure for work that is no longer being attempted.
+
+Local journey data is untouched — only the undeliverable copies of it are
+dropped. `View Google Sheet` still works with any shareable link, since viewing
+a sheet and writing to it are different requirements.
+
 ### Sheet schema
 
 The wire format is the sheet. `SHEET_COLUMNS`, `toSheetRow`, and `fromSheetRow`
@@ -208,11 +234,23 @@ the two line up field by field: `Day`, `Date`, `Main Tasks`, `To-Do List`,
 that exists only in the CSV. The JSON export carries `plannedItems` as real
 structured items.
 
-## Icons
+## Icons and branding
 
-`scripts/generate-icons.mjs` writes `public/chiliad-logo.png`,
-`apple-touch-icon.png`, `pwa-192x192.png`, `pwa-512x512.png`, and
-`favicon.ico` from a single source. It runs automatically as the first step of
-`npm run build`, so the icons cannot go stale relative to the sidebar branding
-that uses them.
+`assets/chiliad-logo.jpg` is the single source of truth for the brand mark. From
+it, `scripts/build-icons.py` produces `public/chiliad-logo.png`,
+`apple-touch-icon.png`, `pwa-192x192.png`, `pwa-512x512.png`, and a multi-size
+`favicon.ico`, so the sidebar, the browser tab, and the installed PWA icon are
+always the same artwork.
+
+These are **committed assets**, not a build step. That is deliberate: a build
+that regenerates them would need a working image toolchain on every clean clone
+and every CI run, and would silently overwrite a hand-placed brand mark — which
+is exactly what an earlier version of this project did. Run `npm run icons`
+deliberately after replacing the master mark; it needs Pillow
+(`pip install pillow`).
+
+`index.html` points every icon slot at `/chiliad-logo.png`. The dedicated
+`favicon.ico` and `apple-touch-icon.png` still ship and stay reachable at their
+conventional paths, so legacy favicon discovery and iOS home-screen installs
+still resolve a correctly-sized asset without being hard-coded.
 

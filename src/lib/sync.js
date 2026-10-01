@@ -8,6 +8,7 @@
  */
 
 import { parseToDoList, planToText } from './plan'
+import { classifySheetUrl } from './config'
 
 /** The backend endpoint. */
 export const SYNC_ENDPOINT = '/api/sync'
@@ -105,6 +106,32 @@ async function requestWithRetry(url, options, { retries = MAX_ATTEMPTS } = {}) {
 }
 
 
+// --- Endpoint capability -------------------------------------------------
+
+/**
+ * Why sync cannot run, or `null` when it can.
+ *
+ * The sheet URL is inspected before any network call is made. A `docs.google.
+ * com/spreadsheets/...` link looks valid and opens in a browser, but it is a
+ * view-only page: every POST to it fails permanently. Finding that out by
+ * attempting the request would burn the full retry budget per save and leave
+ * the user staring at a `SYNC ERROR` badge that no amount of retrying can clear.
+ *
+ * Classifying up front turns that into an honest LOCAL MODE, and lets the
+ * queued writes be dropped instead of retried forever against a destination
+ * that does not exist.
+ */
+export function syncBlockReason() {
+  return classifySheetUrl()
+}
+
+/** True when the configured backend can actually accept a write. */
+export function isSyncConfigured() {
+  return syncBlockReason() === null
+}
+
+const BLOCKED = { ok: false, queued: false, blocked: true }
+
 // --- Offline queue -------------------------------------------------------
 
 /** Read the pending-write queue from localStorage. */
@@ -128,8 +155,15 @@ function writeQueue(queue) {
   }
 }
 
-/** Queue a day for later delivery. Latest write per day wins. */
+/**
+ * Queue a day for later delivery. Latest write per day wins.
+ *
+ * A no-op when sync is not configured: queueing work that can never be
+ * delivered would grow localStorage without bound and inflate the pending
+ * counter, implying unsent work that is not going to be sent.
+ */
 export function enqueue(entry) {
+  if (!isSyncConfigured()) return
   const queue = readQueue()
   queue[entry.dayNum] = entry
   writeQueue(queue)
@@ -144,6 +178,21 @@ export function dequeue(dayNum) {
 
 export function queueSize() {
   return Object.keys(readQueue()).length
+}
+
+/**
+ * Discard every queued write, returning how many were dropped.
+ *
+ * Called when the sheet URL turns out to be unusable. The queue is the reason
+ * a `SYNC ERROR` badge persists across reloads, so leaving entries behind would
+ * keep the app reporting a failure for work it is no longer even trying to
+ * send. Local journey data is untouched - only the undeliverable copies of it
+ * go.
+ */
+export function clearQueue() {
+  const dropped = queueSize()
+  writeQueue({})
+  return dropped
 }
 
 // --- Google Sheet row schema ----------------------------------------------
@@ -241,6 +290,8 @@ export function fromSheetRow(row, fallback) {
  * sheet stores rather than a second, drifting format.
  */
 export async function fetchRemote() {
+  if (!isSyncConfigured()) return { ...BLOCKED, entries: null, status: 0 }
+
   const result = await requestWithRetry(SYNC_ENDPOINT, {
     method: 'GET',
     headers: { Accept: 'application/json' },
@@ -270,6 +321,10 @@ export async function fetchRemote() {
  * the row is queued for when connectivity returns.
  */
 export async function pushEntry(entry) {
+  // Never issued when the destination is known-unwritable: no request, no
+  // retry budget spent, and nothing added to the queue to be retried later.
+  if (!isSyncConfigured()) return BLOCKED
+
   const result = await requestWithRetry(SYNC_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -290,6 +345,13 @@ export async function pushEntry(entry) {
  * the connection is back. Returns counts for reporting in the UI.
  */
 export async function flushQueue() {
+  // Anything already queued from an earlier session is undeliverable now, so it
+  // is dropped rather than counted as a failure.
+  if (!isSyncConfigured()) {
+    clearQueue()
+    return { pushed: 0, failed: 0, skipped: true }
+  }
+
   const queue = readQueue()
   const dayNums = Object.keys(queue)
   if (!dayNums.length) return { pushed: 0, failed: 0 }
