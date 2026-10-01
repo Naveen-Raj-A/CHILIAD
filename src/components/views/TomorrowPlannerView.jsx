@@ -1,26 +1,26 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { CalendarClock, Check, Lock, Pencil, Plus, Target, X } from 'lucide-react'
 import Headline from '../Headline'
 import ProgressBar from '../ProgressBar'
+import StatusBadge from '../StatusBadge'
 import { cn } from '../../lib/cn'
-import { addDaysISO, formatLongDate } from '../../lib/date'
+import { formatLongDate } from '../../lib/date'
 import { createPlanItem, planProgressPct, sanitizePlanItems } from '../../lib/plan'
 
-/** How many past days with a plan the history strip shows. */
-const HISTORY_LIMIT = 14
-
+/** How many upcoming days the planner offers to queue work against. */
+const UPCOMING_LIMIT = 30
 /**
- * Tomorrow Planner.
+ * TO - DO: forward-only planning.
  *
- * A forward-only planning surface. The single editable target is tomorrow's
- * date; the writer in App (`handleSavePlan`) re-checks that independently, so
- * this view is convenience, not the security boundary.
+ * Any future date can be queued - tomorrow, or three weeks out - and each plan
+ * stays bound to the date it was written for. Today and the past are
+ * unreachable from here: the writer in App (`handleSavePlan`) rejects anything
+ * that is not strictly in the future, so this view is convenience, not the
+ * security boundary.
  *
- * Everything else is read-only. A plan is written against a specific date and
- * stays bound to it: once that date arrives, the same items are the day's
- * official action items inside the Daily Tracker, and neither the plan nor the
- * past can be edited from here. Nothing is copied between records, so there is
- * only ever one copy of a plan.
+ * When a queued date arrives, its plan becomes that day's official action items
+ * in the Daily Tracker. Nothing is copied between records, so there is only
+ * ever one copy of a plan and no migration to reconcile.
  */
 export default function TomorrowPlannerView({
   days,
@@ -31,19 +31,26 @@ export default function TomorrowPlannerView({
   onSavePlan,
   onOpenInTracker,
 }) {
-  const tomorrowISO = addDaysISO(todayISO, 1)
-  const tomorrow = days.find((day) => day.date === tomorrowISO)
+  const upcoming = useMemo(
+    () => days.filter((day) => day.date > todayISO).slice(0, UPCOMING_LIMIT),
+    [days, todayISO],
+  )
+
+  // Default to the nearest future day, and keep a valid target selected even
+  // after a day is planned to the end and rolls off the end of the window.
+  const [targetDayNum, setTargetDayNum] = useState(() => upcoming[0]?.dayNum ?? 0)
+  const active = upcoming.find((day) => day.dayNum === targetDayNum) || upcoming[0] || null
 
   const [draft, setDraft] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editDraft, setEditDraft] = useState('')
 
-  const items = tomorrow ? sanitizePlanItems(tomorrow.plannedItems) : []
+  const items = active ? sanitizePlanItems(active.plannedItems) : []
 
-  /** Every edit funnels through here so tomorrowISO is validated once. */
+  /** Every edit funnels through here so the write path is validated once. */
   const commit = (nextItems) => {
-    if (!tomorrow) return
-    onSavePlan(tomorrow.dayNum, nextItems)
+    if (!active) return
+    onSavePlan(active.dayNum, nextItems)
   }
 
   const handleAdd = (event) => {
@@ -81,11 +88,10 @@ export default function TomorrowPlannerView({
     setEditDraft('')
   }
 
-  // Newest first, so the most recent plans sit at the top of the strip.
-  const history = days
-    .filter((day) => day.date < tomorrowISO && sanitizePlanItems(day.plannedItems).length > 0)
-    .slice(-HISTORY_LIMIT)
-    .reverse()
+  // Settled plans in strict chronological order: Day 1, Day 2, Day 3 ...
+  const history = days.filter(
+    (day) => day.date < todayISO && sanitizePlanItems(day.plannedItems).length > 0,
+  )
 
   const progress = planProgressPct(items)
   const remaining = items.filter((item) => !item.done).length
@@ -99,19 +105,72 @@ export default function TomorrowPlannerView({
         subtitle="TO - DO"
       />
 
+      {/* Upcoming day picker: any future date can be queued. */}
+      {upcoming.length > 0 && (
+        <section className="card w-full p-4" aria-labelledby="upcoming-heading">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2
+              id="upcoming-heading"
+              className="text-2xs font-semibold uppercase tracking-[0.12em] text-ink-secondary"
+            >
+              Upcoming
+            </h2>
+            <p className="text-2xs text-ink-muted">
+              Next {upcoming.length} day{upcoming.length === 1 ? '' : 's'}
+            </p>
+          </div>
+
+          <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+            {upcoming.map((day) => {
+              const isActive = active?.dayNum === day.dayNum
+              const count = sanitizePlanItems(day.plannedItems).length
+              return (
+                <button
+                  key={day.dayNum}
+                  type="button"
+                  onClick={() => setTargetDayNum(day.dayNum)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    'flex min-w-[4.25rem] flex-shrink-0 flex-col items-center gap-0.5 rounded-lg border px-2.5 py-2 transition-colors',
+                    isActive
+                      ? 'border-ink bg-ink text-obsidian'
+                      : 'border-edge-strong bg-surface-input text-ink-secondary hover:bg-surface-hover hover:text-ink',
+                  )}
+                >
+                  <span className="text-2xs uppercase tracking-wide opacity-70">
+                    Day {day.dayNum}
+                  </span>
+                  <span className="text-2xs tabular-nums opacity-60">
+                    {formatLongDate(day.date).replace(/,.*/, '')}
+                  </span>
+                  <span
+                    className={cn(
+                      'text-2xs font-semibold tabular-nums',
+                      isActive ? '' : count > 0 ? 'text-sky-400' : 'text-ink-muted',
+                    )}
+                  >
+                    {count > 0 ? `${count} item${count === 1 ? '' : 's'}` : '—'}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
       {/* The one editable surface */}
       <section className="card w-full p-5 sm:p-6" aria-labelledby="planner-heading">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2
               id="planner-heading"
-              className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-ink-secondary"
+              className="flex flex-wrap items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-ink-secondary"
             >
               <CalendarClock className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden="true" />
-              Tomorrow
-              {tomorrow && (
+              {active ? `Day ${active.dayNum.toLocaleString()}` : 'Queue'}
+              {active && (
                 <span className="normal-case tracking-normal text-ink-muted">
-                  {formatLongDate(tomorrow.date)} · Day {tomorrow.dayNum.toLocaleString()}
+                  {formatLongDate(active.date)}
                 </span>
               )}
             </h2>
@@ -121,31 +180,29 @@ export default function TomorrowPlannerView({
             </p>
           </div>
 
-          {tomorrow && (
-            <div className="text-right">
-              <p className="text-2xs uppercase tracking-wide text-ink-muted">
-                {items.length ? `${remaining} of ${items.length} open` : 'Nothing planned'}
-              </p>
-            </div>
+          {active && (
+            <p className="text-2xs uppercase tracking-wide text-ink-muted">
+              {items.length ? `${remaining} of ${items.length} open` : 'Nothing queued'}
+            </p>
           )}
         </div>
 
-        {!tomorrow ? (
+        {!active ? (
           <p className="mt-5 rounded-lg border border-dashed border-edge px-4 py-8 text-center text-sm text-ink-muted">
-            Tomorrow falls outside the 1,000-day window, so there is nothing to plan yet.
+            There are no future days left in the 1,000-day window to plan against.
           </p>
         ) : (
           <>
             <form onSubmit={handleAdd} className="mt-5 flex items-center gap-2">
               <label className="sr-only" htmlFor="plan-item">
-                Add a plan item for tomorrow
+                Add a plan item for Day {active.dayNum}
               </label>
               <input
                 id="plan-item"
                 type="text"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                placeholder="What must be true tomorrow?"
+                placeholder="What must be true by this day?"
                 maxLength={200}
                 className="field flex-1"
               />
@@ -161,7 +218,7 @@ export default function TomorrowPlannerView({
 
             <ProgressBar
               value={progress}
-              label="Tomorrow's plan completion"
+              label={`Day ${active.dayNum} plan completion`}
               tone={progress === 100 ? 'emerald' : 'sky'}
               className="mt-4"
               showValue
@@ -252,7 +309,7 @@ export default function TomorrowPlannerView({
         )}
       </section>
 
-      {/* Read-only history */}
+      {/* Settled plans, in strict chronological order. */}
       <section className="card w-full p-5" aria-labelledby="plan-history-heading">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2
@@ -262,7 +319,9 @@ export default function TomorrowPlannerView({
             <Target className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden="true" />
             Settled Plans
           </h2>
-          <p className="text-xs text-ink-muted">Read-only · last {HISTORY_LIMIT} days</p>
+          <p className="text-xs text-ink-muted">
+            Read-only · {history.length} day{history.length === 1 ? '' : 's'} in order
+          </p>
         </div>
 
         {history.length === 0 ? (
@@ -270,7 +329,7 @@ export default function TomorrowPlannerView({
             No plans have settled yet.
           </p>
         ) : (
-          <ul className="mt-4 space-y-2">
+          <ol className="mt-4 space-y-2">
             {history.map((day) => {
               const dayItems = sanitizePlanItems(day.plannedItems)
               const dayProgress = planProgressPct(dayItems)
@@ -281,17 +340,18 @@ export default function TomorrowPlannerView({
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
+                      <span className="rounded bg-surface px-1.5 py-0.5 text-2xs font-semibold tabular-nums text-ink-secondary">
+                        Day {day.dayNum.toLocaleString()}
+                      </span>
+                      <StatusBadge status={day.status} />
+                      <span className="text-2xs tabular-nums text-ink-muted">
+                        {formatLongDate(day.date)}
+                      </span>
                       <Lock
                         className="h-3 w-3 shrink-0 text-ink-muted"
                         strokeWidth={2.5}
-                        aria-hidden="true"
+                        aria-label="Read-only"
                       />
-                      <span className="text-xs text-ink">
-                        Day {day.dayNum.toLocaleString()}
-                        <span className="ml-1.5 text-ink-muted">
-                          {formatLongDate(day.date)}
-                        </span>
-                      </span>
                     </div>
                     <button
                       type="button"
@@ -317,7 +377,7 @@ export default function TomorrowPlannerView({
                 </li>
               )
             })}
-          </ul>
+          </ol>
         )}
       </section>
     </div>

@@ -7,8 +7,6 @@
  * degrades the app to pure-local behaviour instead of breaking it.
  */
 
-import { sanitizePlanItems } from './plan'
-
 /** The backend endpoint. */
 export const SYNC_ENDPOINT = '/api/sync'
 
@@ -146,11 +144,87 @@ export function queueSize() {
   return Object.keys(readQueue()).length
 }
 
+// --- Google Sheet row schema ----------------------------------------------
+
+/**
+ * The seven columns of the backing Google Sheet, in sheet order.
+ *
+ * This is the wire contract, not an implementation detail: anything the app
+ * sends is shaped like a row of that sheet, and anything the sheet returns is
+ * read back the same way. Keeping the two in one place stops the payload and
+ * the parser from drifting apart.
+ */
+export const SHEET_COLUMNS = [
+  'Day Number',
+  'Date',
+  'Main Tasks / Planned To-Dos',
+  'Status',
+  'Progress %',
+  'Details / Log',
+  'Notes & Reflections',
+]
+
+/**
+ * Render a day as a flat Sheet row.
+ *
+ * Keyed by column name rather than index, so adding a column can never silently
+ * shift data sideways. Progress is coerced to a number and status is taken as
+ * given - the caller passes the derived record, so the sheet always receives
+ * the status the user actually sees.
+ */
+export function toSheetRow(day) {
+  return {
+    'Day Number': day.dayNum,
+    Date: day.date,
+    'Main Tasks / Planned To-Dos': day.mainTasks || '',
+    Status: day.status,
+    'Progress %': Math.min(Math.max(Number(day.progress) || 0, 0), 100),
+    'Details / Log': day.details || '',
+    'Notes & Reflections': day.notes || '',
+  }
+}
+
+/**
+ * Read a Sheet row back into a day entry.
+ *
+ * Tolerant by design: a header rename, a blank progress cell, or a stringified
+ * number must not throw or corrupt the merge. `fallback` supplies the day
+ * number and date, so the row is always bound to the right slot.
+ */
+export function fromSheetRow(row, fallback) {
+  if (!row || typeof row !== 'object') return null
+
+  const pick = (...keys) => {
+    for (const key of keys) {
+      const value = row[key]
+      if (value !== undefined && value !== null && value !== '') return value
+    }
+    return ''
+  }
+
+  const rawDayNum = pick('Day Number', 'dayNumber', 'day')
+  const dayNum = Number(rawDayNum) || fallback.dayNum
+  const progress = Number(pick('Progress %', 'progress'))
+
+  return {
+    dayNum,
+    date: pick('Date', 'date') || fallback.date,
+    mainTasks: String(pick('Main Tasks / Planned To-Dos', 'mainTasks', 'main tasks')),
+    status: String(pick('Status', 'status')),
+    progress: Number.isFinite(progress) ? Math.min(Math.max(progress, 0), 100) : 0,
+    details: String(pick('Details / Log', 'details', 'details / log')),
+    notes: String(pick('Notes & Reflections', 'notes', 'notes & reflections')),
+  }
+}
+
 // --- API operations ------------------------------------------------------
 
 /**
  * GET /api/sync - fetch the full journey from the backend.
- * Accepts either a bare array or `{ days: [...] }`.
+ *
+ * Accepts a bare array of rows, or `{ days: [...] }` / `{ entries: [...] }`.
+ * Rows are read through the Sheet schema, so the app consumes exactly what the
+ * sheet stores rather than a second, drifting format.
  */
 export async function fetchRemote() {
   const result = await requestWithRetry(SYNC_ENDPOINT, {
@@ -163,23 +237,29 @@ export async function fetchRemote() {
   }
 
   const payload = result.data
-  const entries = Array.isArray(payload) ? payload : payload?.days
-  if (!Array.isArray(entries)) {
+  const rows = Array.isArray(payload)
+    ? payload
+    : (payload?.days ?? payload?.entries ?? payload?.rows)
+
+  if (!Array.isArray(rows)) {
     return { ok: false, entries: null, error: 'Malformed response', status: result.status }
   }
 
-  return { ok: true, entries, error: null, status: result.status }
+  return { ok: true, entries: rows, error: null, status: result.status }
 }
 
 /**
- * POST /api/sync - push a single day entry.
- * On failure the entry is queued so it is retried when connectivity returns.
+ * POST /api/sync - push a single day as one Sheet row.
+ *
+ * The queue is keyed by day number, and the entry is queued by day number too,
+ * so a row is never re-associated with the wrong day after a retry. On failure
+ * the row is queued for when connectivity returns.
  */
 export async function pushEntry(entry) {
   const result = await requestWithRetry(SYNC_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(entry),
+    body: JSON.stringify(toSheetRow(entry)),
   })
 
   if (result.ok) {
@@ -210,7 +290,7 @@ export async function flushQueue() {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(queue[dayNum]),
+        body: JSON.stringify(toSheetRow(queue[dayNum])),
       },
       { retries: 1 },
     )
@@ -238,19 +318,23 @@ export function mergeRemote(localDays, remoteEntries, { isBlank } = {}) {
   const merged = localDays.map((day) => ({ ...day }))
   let applied = 0
 
-  remoteEntries.forEach((remote, index) => {
-    if (!remote || typeof remote !== 'object') return
+  remoteEntries.forEach((row, index) => {
+    if (!row || typeof row !== 'object') return
 
     const target = merged[index]
     if (!target) return
 
-    const remotePlan = sanitizePlanItems(remote.plannedItems)
+    // Read the row through the Sheet schema, then bind it to this slot. The
+    // fallback carries the day number and date, so a row with a blank or
+    // renamed Day Number cell still lands on the right day.
+    const remote = fromSheetRow(row, target)
+    if (!remote) return
+
     const remoteHasContent =
       remote.mainTasks ||
       remote.details ||
       remote.notes ||
-      Number(remote.progress) > 0 ||
-      remotePlan.length > 0 ||
+      remote.progress > 0 ||
       (remote.status && remote.status !== 'Not Started')
 
     const localIsBlank = isBlank ? isBlank(target) : true
@@ -260,11 +344,12 @@ export function mergeRemote(localDays, remoteEntries, { isBlank } = {}) {
     merged[index] = {
       ...target,
       mainTasks: remote.mainTasks || target.mainTasks,
+      // The remote status is the user's last recorded intent, not a derived
+      // value: applyStatus recomputes it on the way to the screen.
       status: remote.status || target.status,
-      progress: Number(remote.progress) || 0,
+      progress: remote.progress,
       details: remote.details || target.details,
       notes: remote.notes || target.notes,
-      plannedItems: remotePlan.length ? remotePlan : target.plannedItems,
     }
     applied += 1
   })

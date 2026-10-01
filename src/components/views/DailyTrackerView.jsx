@@ -1,18 +1,10 @@
 ﻿import { useState } from 'react'
-import { Check, ChevronLeft, ChevronRight, Lock, Save, X } from 'lucide-react'
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Lock, Save, X } from 'lucide-react'
 import StatusBadge from '../StatusBadge'
 import ProgressBar from '../ProgressBar'
 import NotesCanvas from '../NotesCanvas'
 import { cn } from '../../lib/cn'
-import { STATUSES } from '../../lib/status'
-import {
-  LOCK_FUTURE,
-  LOCK_PAST,
-  LOCK_TODAY,
-  canEdit,
-  lockLabel,
-  lockState,
-} from '../../lib/lock'
+import { LOCK_PAST, LOCK_TODAY, LOCK_FUTURE, canEdit, lockLabel, lockState } from '../../lib/lock'
 import { planProgressPct, sanitizePlanItems } from '../../lib/plan'
 import { TOTAL_DAYS, formatLongDate } from '../../lib/date'
 
@@ -82,6 +74,28 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
   }
 
   const handleDiscard = () => {
+    setDraft(null)
+    setDirtyDay(null)
+  }
+
+  /**
+   * Close the day out in one action.
+   *
+   * On a planned day this ticks the whole checklist rather than typing 100%,
+   * because progress there is derived from the checklist: writing the number
+   * directly would be recomputed away on the next save and the button would
+   * silently do nothing.
+   */
+  const handleMarkComplete = () => {
+    if (!editable) return
+    if (hasPlan) {
+      onSave({
+        ...values,
+        plannedItems: planItems.map((item) => ({ ...item, done: true })),
+      })
+    } else {
+      onSave({ ...values, progress: 100 })
+    }
     setDraft(null)
     setDirtyDay(null)
   }
@@ -260,22 +274,13 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="label" htmlFor="tracker-status">
-                  Status
-                </label>
-                <select
-                  id="tracker-status"
-                  disabled={!editable}
-                  className={cn(fieldClass(!editable), 'appearance-none')}
-                  value={values.status}
-                  onChange={update('status')}
-                >
-                  {STATUSES.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
+                <span className="label">Status</span>
+                <div className="flex h-10 items-center gap-2 rounded-lg border border-edge bg-surface-input px-3">
+                  <StatusBadge status={values.status} />
+                </div>
+                <p className="mt-1 text-2xs text-ink-muted">
+                  Derived from the date, progress, and checklist.
+                </p>
               </div>
 
               <div>
@@ -354,7 +359,18 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-edge pt-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-edge pt-4">
+          {editable && values.status !== 'Completed' && (
+            <button
+              type="button"
+              onClick={handleMarkComplete}
+              className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-sm font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20"
+            >
+              <CheckCircle2 className="h-4 w-4" strokeWidth={2.25} />
+              Mark day complete
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleDiscard}

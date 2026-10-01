@@ -8,9 +8,10 @@ import { TOTAL_DAYS } from '../../lib/date'
 
 /** Status segments used for the completion-vs-remaining stacked bar. */
 const BREAKDOWN = [
-  { key: 'completed', label: 'Completed / Done', className: 'bg-emerald-500/70' },
+  { key: 'completed', label: 'Completed', className: 'bg-emerald-500/70' },
   { key: 'inProgress', label: 'In Progress', className: 'bg-sky-500/70' },
   { key: 'notStarted', label: 'Not Started', className: 'bg-neutral-700' },
+  { key: 'notCompleted', label: 'Not Completed', className: 'bg-amber-500/50' },
 ]
 
 /**

@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['chiliad-logo.png', 'apple-touch-icon.png', 'favicon.ico'],
       manifest: {
         name: 'Chiliad - 1,000-Day Journey OS',
         short_name: 'Chiliad',
@@ -20,8 +20,15 @@ export default defineConfig({
         orientation: 'any',
         start_url: '/',
         scope: '/',
-        // Icon paths are generated from public/ at build time.
+        // Icon paths are generated into public/ at build time by
+        // scripts/generate-icons.mjs, so they can never go stale.
         icons: [
+          {
+            src: 'chiliad-logo.png',
+            sizes: '256x256',
+            type: 'image/png',
+            purpose: 'any',
+          },
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
@@ -35,6 +42,12 @@ export default defineConfig({
             purpose: 'any',
           },
           {
+            src: 'pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
@@ -44,7 +57,7 @@ export default defineConfig({
       },
       workbox: {
         // Precache the built app shell so the PWA opens instantly offline.
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         // Never intercept the sync API: it must always hit the network so the

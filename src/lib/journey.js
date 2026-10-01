@@ -1,5 +1,5 @@
 import { JOURNEY_START_ISO, TOTAL_DAYS, dateForDay } from './date'
-import { COMPLETED_STATUSES, STATUSES } from './status'
+import { COMPLETED_STATUSES, STATUSES, deriveStatus } from './status'
 import { sanitizePlanItems } from './plan'
 
 /** Fields that make up a single journey day record. */
@@ -56,7 +56,10 @@ export function normalizeEntry(raw, fallback) {
   const base = emptyEntry(fallback.dayNum, fallback.date)
   if (!raw || typeof raw !== 'object') return base
 
-  const status = STATUSES.includes(raw.status) ? raw.status : base.status
+  // 'Done' was folded into 'Completed' when status became derived, so records
+  // written before that are migrated rather than silently reset to the default.
+  const rawStatus = raw.status === 'Done' ? 'Completed' : raw.status
+  const status = STATUSES.includes(rawStatus) ? rawStatus : base.status
   const rawProgress = Number(raw.progress)
 
   return {
@@ -76,34 +79,30 @@ export function normalizeEntry(raw, fallback) {
 }
 
 /**
- * The day array as it should be presented, with today opened up.
+ * The day array with every day's status derived from its record and the date.
  *
- * The moment a date becomes today it stops being "Not Started": the day opens
- * as "In Progress" so the tracker, the heatmap, and the grid all show it as
- * live rather than blank. This applies to every day still sitting at the
- * default status, whether or not anything has been written on it yet - a day
- * that has work recorded but was never explicitly marked is plainly underway.
+ * This is what the app presents; the stored record keeps the status the user
+ * last chose, so a deliberate choice is never overwritten and `isBlank` can
+ * still tell local intent from an untouched day. The derived value is what
+ * reaches the screen, the stats, and the sync payload.
  *
- * Any status the user has set is left exactly as it is, so a day that was
- * closed out stays closed, and no deliberate choice is ever overwritten.
- *
- * Returned unchanged - same reference - when nothing needs promoting, so
- * consumers keyed on identity do not re-render. Deriving this during render
- * rather than writing it in an effect keeps a single source of truth: the
- * stored record and the record on screen can never disagree.
+ * Returns the same array reference when nothing changes, so consumers keyed on
+ * identity do not re-render. Derived during render rather than written in an
+ * effect, so the stored record and the record on screen cannot disagree.
  */
-export function promoteToday(days, todayISO) {
+export function applyStatus(days, todayISO) {
   if (!Array.isArray(days) || !todayISO) return days
 
-  const index = days.findIndex((day) => day.date === todayISO)
-  if (index === -1) return days
+  let next = null
+  for (let i = 0; i < days.length; i += 1) {
+    const day = days[i]
+    const status = deriveStatus(day, todayISO)
+    if (status === day.status) continue
+    if (!next) next = [...days]
+    next[i] = { ...day, status }
+  }
 
-  const day = days[index]
-  if (day.status !== STATUSES[0]) return days
-
-  const next = [...days]
-  next[index] = { ...day, status: STATUSES[1] }
-  return next
+  return next ?? days
 }
 
 /**

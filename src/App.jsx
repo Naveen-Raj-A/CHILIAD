@@ -9,7 +9,7 @@ import TomorrowPlannerView from './components/views/TomorrowPlannerView'
 import AnalyticsView from './components/views/AnalyticsView'
 import SettingsView from './components/views/SettingsView'
 import { computeStats } from './lib/stats'
-import { isBlank, promoteToday } from './lib/journey'
+import { applyStatus, isBlank } from './lib/journey'
 import {
   SYNC_STATUS,
   fetchRemote,
@@ -57,12 +57,12 @@ export default function App() {
   // The stored record. `days` below is what the app presents.
   const [storedDays, setStoredDays] = useState(loadJourney)
 
-  // Midnight roll-over, derived during render: the date that just became today
-  // is presented as "In Progress" instead of "Not Started". Nothing is written
-  // back here, so there is no second copy of the truth and no cascading render
-  // - the persist effect below stores the promoted record. A promoted day is
-  // not treated as logged activity: see `isLogged`.
-  const days = useMemo(() => promoteToday(storedDays, todayISO), [storedDays, todayISO])
+  // Status is derived during render from the date, the progress, and the plan
+  // checklist, so ticking a task moves the day from Not Started to In Progress
+  // and on to Completed with no second control to keep in sync. Nothing is
+  // written back here, so the stored record keeps the user's own choice and
+  // the two can never disagree.
+  const days = useMemo(() => applyStatus(storedDays, todayISO), [storedDays, todayISO])
 
   // Open on today, clamped into the window. Hardcoding Day 1 would drop the
   // user on a read-only past day as soon as real time moved past the start.
@@ -81,10 +81,12 @@ export default function App() {
   // Held at the top level so every view reacts to changes in the same render.
   const [todos, setTodos] = useState(loadTodos)
 
-  // Persist on every change so a refresh never loses edits.
+  // Persist the stored record, never the derived one. Writing the derived
+  // status back would destroy the user's original choice and make every
+  // settled past day look like local intent to a background merge.
   useEffect(() => {
-    saveJourney(days)
-  }, [days])
+    saveJourney(storedDays)
+  }, [storedDays])
 
   // Persist quick tasks under their own key, decoupled from the journey.
   useEffect(() => {
@@ -256,22 +258,25 @@ export default function App() {
   )
 
   /**
-   * Write the Tomorrow Planner's checklist.
+   * Write a future day's checklist.
    *
    * The only write path allowed to touch a future day, and it is deliberately
-   * narrow: the target must be exactly tomorrow, and only `plannedItems` may
-   * change. A future day's tasks, log, status, progress, and notes are left
-   * alone, and the history stays immutable because no other date is reachable
-   * from here. Progress is never derived here either - tomorrow's completion
-   * is unknown until the day actually arrives.
+   * narrow in two ways. The target must be strictly in the future, so today
+   * and the past are unreachable and settled history can never be rewritten.
+   * And only `plannedItems` may change: a future day's tasks, log, status,
+   * progress, and notes are left alone.
+   *
+   * Progress is never derived here either. A future day's completion is
+   * unknown until the day actually arrives, so writing it now would put a
+   * number in the grid for work that has not happened.
    */
   const handleSavePlan = useCallback(
     (dayNum, plannedItems) => {
       const target = days[dayNum - 1]
-      if (!target || target.date !== tomorrowISO) {
+      if (!target || !target.date || target.date <= todayISO) {
         notify({
           tone: 'error',
-          message: 'Plans can only be written for tomorrow.',
+          message: 'Plans can only be written for a future date.',
         })
         return
       }
@@ -302,7 +307,7 @@ export default function App() {
           setPendingCount(queueSize())
         })
     },
-    [days, notify, tomorrowISO],
+    [days, notify, todayISO],
   )
 
   /**
@@ -421,7 +426,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-obsidian">
+    <div className="flex h-screen w-screen overflow-hidden bg-obsidian text-ink">
       <Sidebar
         activeView={activeView}
         onNavigate={setActiveView}
@@ -432,13 +437,16 @@ export default function App() {
         onOpenSearch={() => setIsPaletteOpen(true)}
       />
 
-      {/* Fills the full canvas: flex-column that stretches to fill viewport */}
-      <main className="flex w-full flex-1 flex-col overflow-y-auto bg-obsidian">
-        <div className="w-full flex-1 flex flex-col px-6 py-6 lg:px-10">
+      {/* The one scrolling region. The sidebar is a fixed-width sibling that
+          never scrolls, so only this panel moves. `min-h-full` on the inner
+          column keeps the footer at the bottom of short pages instead of
+          letting it ride up mid-content. */}
+      <main className="h-full min-w-0 flex-1 overflow-y-auto scroll-smooth bg-obsidian">
+        <div className="flex min-h-full w-full flex-col px-6 py-6 lg:px-10">
           <div className="flex-1 space-y-6">
             <ActiveView {...viewProps} />
 
-            <footer className="w-full py-4 text-2xs text-ink-muted border-t border-edge">
+            <footer className="w-full border-t border-edge py-4 text-2xs text-ink-muted">
               Chiliad - 1,000 Day Journey. Data is stored locally in your browser.
             </footer>
           </div>

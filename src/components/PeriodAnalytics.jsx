@@ -53,7 +53,7 @@ function countSegments(daysList) {
     else none += 1
   }
   return [
-    { label: 'Completed / Done', value: done, color: DONE },
+    { label: 'Completed', value: done, color: DONE },
     { label: 'In Progress', value: progress, color: PROGRESS },
     { label: 'Not Started', value: none, color: NONE },
   ].filter((segment) => segment.value > 0)

@@ -1,4 +1,4 @@
-import { Flame, Pencil, Search } from 'lucide-react'
+import { Pencil, Search } from 'lucide-react'
 import { NAV_ITEMS } from '../lib/nav'
 import { cn } from '../lib/cn'
 import { TOTAL_DAYS } from '../lib/date'
@@ -30,13 +30,17 @@ export default function Sidebar({
   const isMac = detectMac()
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-edge bg-sidebar">
+    <aside className="flex h-full w-64 flex-shrink-0 flex-col border-r border-edge bg-sidebar">
       {/* Brand */}
-      <div className="border-b border-edge px-5 py-5">
+      <div className="flex-shrink-0 border-b border-edge px-5 py-5">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-edge bg-surface">
-            <Flame className="h-4 w-4 text-ink" strokeWidth={2} />
-          </span>
+          <img
+            src="/chiliad-logo.png"
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8 shrink-0 rounded-lg border border-edge object-contain"
+          />
           <div className="leading-tight">
             <p className="text-sm font-semibold tracking-tight text-ink">Chiliad</p>
             <p className="text-2xs text-ink-secondary">1,000-Day OS</p>
@@ -53,8 +57,12 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav aria-label="Primary" className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      {/* Navigation. This is the only scrolling region: the brand above and
+          the footer below stay pinned, so the rail itself never moves. */}
+      <nav
+        aria-label="Primary"
+        className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-4"
+      >
         <button
           type="button"
           onClick={onOpenSearch}
@@ -89,10 +97,12 @@ export default function Sidebar({
         })}
       </nav>
 
-      {/* Footer. Stacked, not side by side: at 256px the rail cannot hold a
-          status pill and a labelled action on one row without squeezing the
-          labels, and a wrapped or clipped pill reads as a broken control. */}
-      <div className="space-y-2 border-t border-edge px-5 py-4">
+      {/* Footer. `mt-auto` pins it to the bottom of the flex column while the
+          nav above takes the remaining height and scrolls. Stacked, not side
+          by side: at 256px the rail cannot hold a status pill and a labelled
+          action on one row without squeezing the labels, and a clipped pill
+          reads as a broken control. */}
+      <div className="mt-auto flex-shrink-0 space-y-2 border-t border-edge px-5 py-4">
         <SyncBadge status={syncStatus} pending={pendingCount} className="w-full justify-center" />
         <ViewSheetButton className="w-full" />
 

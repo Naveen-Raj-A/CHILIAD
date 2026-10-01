@@ -16,6 +16,7 @@ export const MILESTONE_SIZE = 100
 export function computeStats(days, todayISO) {
   let completed = 0
   let inProgress = 0
+  let notCompleted = 0
   let notStarted = 0
   let logged = 0
   let progressSum = 0
@@ -23,6 +24,7 @@ export function computeStats(days, todayISO) {
   for (const day of days) {
     if (COMPLETED_STATUSES.has(day.status)) completed += 1
     else if (day.status === 'In Progress') inProgress += 1
+    else if (day.status === 'Not Completed') notCompleted += 1
     else notStarted += 1
 
     if (isLogged(day)) logged += 1
@@ -36,6 +38,7 @@ export function computeStats(days, todayISO) {
     totalDays: TOTAL_DAYS,
     completed,
     inProgress,
+    notCompleted,
     notStarted,
     logged,
     unlogged: days.length - logged,
