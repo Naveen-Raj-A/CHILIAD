@@ -1,4 +1,4 @@
-﻿import { useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   AlertTriangle,
   CalendarDays,
@@ -106,7 +106,7 @@ export default function SettingsView({ days, stats, onImport, onReset, onNotify 
       </div>
 
       {/* Storage status */}
-      <section className="card p-5" aria-labelledby="storage-heading">
+      <section className="card p-4 md:p-5" aria-labelledby="storage-heading">
         <h2
           id="storage-heading"
           className="text-sm font-semibold uppercase tracking-[0.12em] text-ink-secondary"
@@ -114,7 +114,7 @@ export default function SettingsView({ days, stats, onImport, onReset, onNotify 
           Storage Status
         </h2>
 
-        <dl className="mt-4 grid grid-cols-2 gap-3">
+        <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[
             { label: 'Total records', value: days.length.toLocaleString(), icon: FileJson },
             { label: 'Logged days', value: stats.logged.toLocaleString(), icon: HardDrive },
@@ -143,7 +143,7 @@ export default function SettingsView({ days, stats, onImport, onReset, onNotify 
       </section>
 
       {/* Cloud sheet */}
-      <section className="card p-5" aria-labelledby="sheet-heading">
+      <section className="card p-4 md:p-5" aria-labelledby="sheet-heading">
         <h2
           id="sheet-heading"
           className="text-sm font-semibold uppercase tracking-[0.12em] text-ink-secondary"
@@ -167,7 +167,7 @@ export default function SettingsView({ days, stats, onImport, onReset, onNotify 
       </section>
 
       {/* Backup / restore */}
-      <section className="card p-5" aria-labelledby="backup-heading">
+      <section className="card p-4 md:p-5" aria-labelledby="backup-heading">
         <h2
           id="backup-heading"
           className="text-sm font-semibold uppercase tracking-[0.12em] text-ink-secondary"
@@ -179,7 +179,7 @@ export default function SettingsView({ days, stats, onImport, onReset, onNotify 
           <button
             type="button"
             onClick={handleExportJson}
-            className="flex items-start gap-3 rounded-lg border border-edge-strong bg-surface-input p-4 text-left transition-colors hover:bg-surface-hover"
+            className="flex min-h-[44px] items-start gap-3 rounded-lg border border-edge-strong bg-surface-input p-4 text-left transition-colors hover:bg-surface-hover"
           >
             <FileJson className="mt-0.5 h-4 w-4 shrink-0 text-ink" strokeWidth={2} />
             <span>
@@ -193,7 +193,7 @@ export default function SettingsView({ days, stats, onImport, onReset, onNotify 
           <button
             type="button"
             onClick={handleExportCsv}
-            className="flex items-start gap-3 rounded-lg border border-edge-strong bg-surface-input p-4 text-left transition-colors hover:bg-surface-hover"
+            className="flex min-h-[44px] items-start gap-3 rounded-lg border border-edge-strong bg-surface-input p-4 text-left transition-colors hover:bg-surface-hover"
           >
             <FileSpreadsheet
               className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400"
@@ -210,7 +210,7 @@ export default function SettingsView({ days, stats, onImport, onReset, onNotify 
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="flex items-start gap-3 rounded-lg border border-edge-strong bg-surface-input p-4 text-left transition-colors hover:bg-surface-hover"
+            className="flex min-h-[44px] items-start gap-3 rounded-lg border border-edge-strong bg-surface-input p-4 text-left transition-colors hover:bg-surface-hover"
           >
             <Upload className="mt-0.5 h-4 w-4 shrink-0 text-ink" strokeWidth={2} />
             <span>
@@ -256,14 +256,14 @@ export default function SettingsView({ days, stats, onImport, onReset, onNotify 
             <button
               type="button"
               onClick={() => setIsConfirming(false)}
-              className="rounded-lg border border-edge-strong bg-surface-input px-3 py-1.5 text-sm text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
+              className="inline-flex min-h-[44px] items-center rounded-lg border border-edge-strong bg-surface-input px-3 py-1.5 text-sm text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleReset}
-              className="rounded-lg bg-rose-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-rose-600"
+              className="inline-flex min-h-[44px] items-center rounded-lg bg-rose-500 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-rose-600"
             >
               Yes, reset everything
             </button>
@@ -272,7 +272,7 @@ export default function SettingsView({ days, stats, onImport, onReset, onNotify 
           <button
             type="button"
             onClick={() => setIsConfirming(true)}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-rose-900/50 bg-rose-950/20 px-3.5 py-2 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-900/40"
+            className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-rose-900/50 bg-rose-950/20 px-3.5 py-2 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-900/40"
           >
             <Trash2 className="h-4 w-4" strokeWidth={2} />
             Reset All Data

@@ -147,7 +147,7 @@ function PaletteContent({ days, onClose, onSelectDay }) {
               type="button"
               onClick={() => setQuery('')}
               aria-label="Clear search"
-              className="rounded p-0.5 text-ink-muted transition-colors hover:text-ink"
+              className="flex h-11 w-11 items-center justify-center rounded text-ink-muted transition-colors hover:text-ink"
             >
               <X className="h-4 w-4" />
             </button>
@@ -165,7 +165,7 @@ function PaletteContent({ days, onClose, onSelectDay }) {
               type="button"
               onClick={() => setActiveTag('All')}
               className={cn(
-                'shrink-0 rounded-full px-2.5 py-1 text-2xs font-medium transition-colors',
+                'inline-flex min-h-[44px] shrink-0 items-center rounded-full px-3 py-1 text-2xs font-medium transition-colors',
                 activeTag === 'All'
                   ? 'bg-ink text-obsidian'
                   : 'border border-edge-strong bg-surface-input text-ink-secondary hover:text-ink',
@@ -179,7 +179,7 @@ function PaletteContent({ days, onClose, onSelectDay }) {
                 type="button"
                 onClick={() => setActiveTag(tag)}
                 className={cn(
-                  'shrink-0 rounded-full px-2.5 py-1 text-2xs font-medium transition-colors',
+                  'inline-flex min-h-[44px] shrink-0 items-center rounded-full px-3 py-1 text-2xs font-medium transition-colors',
                   activeTag === tag
                     ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
                     : 'border border-edge-strong bg-surface-input text-ink-secondary hover:text-ink',
@@ -215,7 +215,7 @@ function PaletteContent({ days, onClose, onSelectDay }) {
                         onClose()
                       }}
                       className={cn(
-                        'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors',
+                        'flex min-h-[44px] w-full items-start gap-3 px-4 py-3 text-left transition-colors',
                         isActive ? 'bg-surface-hover' : 'hover:bg-surface-hover/60',
                       )}
                     >

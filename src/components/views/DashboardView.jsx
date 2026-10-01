@@ -62,8 +62,10 @@ export default function DashboardView({
         subtitle="Executive Dashboard"
       />
 
-      {/* Macro metrics: the whole journey at a glance. */}
-      <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {/* Macro metrics: the whole journey at a glance.
+          One column on a phone so a 4-up row of cards cannot crush to
+          unreadable slivers, widening only once there is room for them. */}
+      <div className="grid w-full grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
         <StatCard
           icon={Layers}
           label="Total days"
@@ -102,7 +104,7 @@ export default function DashboardView({
       </div>
 
       {/* Today's snapshot: read-only, and a pointer to the one editor. */}
-      <section className="card w-full p-5" aria-labelledby="today-snapshot-heading">
+      <section className="card w-full p-4 md:p-5" aria-labelledby="today-snapshot-heading">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2
@@ -165,7 +167,7 @@ export default function DashboardView({
             <button
               type="button"
               onClick={() => onNavigate('tracker')}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-edge-strong bg-surface-input px-3.5 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
+              className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-edge-strong bg-surface-input px-3.5 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
             >
               <Pencil className="h-4 w-4" strokeWidth={2.25} aria-hidden="true" />
               Open today's editor
@@ -175,7 +177,7 @@ export default function DashboardView({
       </section>
 
       {/* Tomorrow: what is already queued, still read-only. */}
-      <section className="card w-full p-5" aria-labelledby="tomorrow-summary-heading">
+      <section className="card w-full p-4 md:p-5" aria-labelledby="tomorrow-summary-heading">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2
@@ -211,7 +213,7 @@ export default function DashboardView({
             {tomorrowItems.map((item) => (
               <li
                 key={item.id}
-                className="flex items-start gap-2 rounded-lg border border-edge bg-surface-input px-3 py-2"
+                className="flex items-start gap-2 rounded-lg border border-edge bg-surface-input px-3 py-2 min-h-[44px]"
               >
                 <span className="text-2xs tabular-nums text-ink-muted">
                   {item.done ? '✓' : '○'}
@@ -232,7 +234,7 @@ export default function DashboardView({
         <button
           type="button"
           onClick={() => onNavigate('planner')}
-          className="mt-4 inline-flex items-center gap-2 rounded-lg border border-edge-strong bg-surface-input px-3.5 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
+          className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-edge-strong bg-surface-input px-3.5 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
         >
           <CalendarClock className="h-4 w-4" strokeWidth={2.25} aria-hidden="true" />
           Open To-Do
@@ -254,7 +256,7 @@ export default function DashboardView({
       />
 
       {/* Quick day jump */}
-      <section className="card w-full p-5" aria-labelledby="quick-jump-heading">
+      <section className="card w-full p-4 md:p-5" aria-labelledby="quick-jump-heading">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2
             id="quick-jump-heading"
@@ -267,14 +269,16 @@ export default function DashboardView({
             <button
               type="button"
               onClick={() => onNavigate('tracker')}
-              className="text-xs font-medium text-ink underline decoration-ink-muted underline-offset-4 transition-colors hover:decoration-ink"
+              className="inline-flex min-h-[44px] items-center text-xs font-medium text-ink underline decoration-ink-muted underline-offset-4 transition-colors hover:decoration-ink"
             >
               Open full tracker
             </button>
           </div>
         </div>
 
-        <div className="mt-4 grid w-full grid-cols-10 gap-1.5 sm:grid-cols-13 lg:grid-cols-25 xl:grid-cols-50">
+        {/* Six across on a phone: at 360px, ten would be ~30px per button, under the
+            44px minimum tap target. The density scales up as room appears. */}
+        <div className="mt-4 grid w-full grid-cols-6 gap-1.5 sm:grid-cols-10 lg:grid-cols-13 xl:grid-cols-25 2xl:grid-cols-50">
           {days.slice(0, QUICK_JUMP_MAX).map((day) => {
             const isSelected = day.dayNum === selectedDayNum
             const isComplete = COMPLETED_STATUSES.has(day.status)
@@ -287,7 +291,7 @@ export default function DashboardView({
                   disabled
                   aria-label={`Day ${day.dayNum} — locked, future date`}
                   title="Locked — future dates cannot be opened"
-                  className="flex cursor-not-allowed items-center justify-center gap-0.5 rounded-lg border border-edge bg-surface-input py-2 text-xs font-medium tabular-nums text-ink-muted opacity-50"
+                  className="flex min-h-[44px] cursor-not-allowed items-center justify-center gap-0.5 rounded-lg border border-edge bg-surface-input text-xs font-medium tabular-nums text-ink-muted opacity-50"
                 >
                   <Lock className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
                 </button>
@@ -301,7 +305,7 @@ export default function DashboardView({
                 aria-pressed={isSelected}
                 aria-label={`Day ${day.dayNum}`}
                 className={cn(
-                  'rounded-lg border py-2 text-xs font-medium tabular-nums transition-colors',
+                  'min-h-[44px] w-full rounded-lg border text-xs font-medium tabular-nums transition-colors',
                   isSelected
                     ? 'border-ink bg-ink text-obsidian'
                     : isComplete

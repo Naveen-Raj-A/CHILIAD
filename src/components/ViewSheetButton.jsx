@@ -32,7 +32,7 @@ export default function ViewSheetButton({ className, label = 'View Google Sheet'
       }
       aria-label={configured ? `${label} (opens in a new tab)` : `${label} (not configured)`}
       className={cn(
-        'inline-flex items-center justify-center gap-1.5 rounded-full border border-edge-strong',
+        'inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full border border-edge-strong',
         'bg-surface-input px-2.5 py-1 text-2xs font-medium uppercase tracking-wide',
         'text-ink-secondary transition-colors',
         configured ? 'hover:bg-surface-hover hover:text-ink' : 'cursor-not-allowed opacity-40',

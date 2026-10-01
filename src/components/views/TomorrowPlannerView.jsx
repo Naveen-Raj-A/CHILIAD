@@ -129,7 +129,7 @@ export default function TomorrowPlannerView({
             </p>
           </div>
 
-          <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+          <div className="mt-3 flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1">
             {upcoming.map((day) => {
               const isActive = active?.dayNum === day.dayNum
               const count = sanitizePlanItems(day.plannedItems).length
@@ -140,7 +140,7 @@ export default function TomorrowPlannerView({
                   onClick={() => setTargetDayNum(day.dayNum)}
                   aria-pressed={isActive}
                   className={cn(
-                    'flex min-w-[4.25rem] flex-shrink-0 flex-col items-center gap-0.5 rounded-lg border px-2.5 py-2 transition-colors',
+                    'flex min-h-[44px] min-w-[4.75rem] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border px-2.5 py-2 transition-colors',
                     isActive
                       ? 'border-ink bg-ink text-obsidian'
                       : 'border-edge-strong bg-surface-input text-ink-secondary hover:bg-surface-hover hover:text-ink',
@@ -168,7 +168,7 @@ export default function TomorrowPlannerView({
       )}
 
       {/* The one editable surface */}
-      <section className="card w-full p-5 sm:p-6" aria-labelledby="planner-heading">
+      <section className="card w-full p-4 md:p-5 md:p-6" aria-labelledby="planner-heading">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2
@@ -219,7 +219,7 @@ export default function TomorrowPlannerView({
                 type="submit"
                 disabled={!draft.trim()}
                 aria-label="Add plan item"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ink text-obsidian transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ink text-obsidian transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Plus className="h-4 w-4" strokeWidth={2.25} />
               </button>
@@ -243,21 +243,25 @@ export default function TomorrowPlannerView({
               {items.map((item) => (
                 <li
                   key={item.id}
-                  className="group flex items-start gap-2 rounded-lg border border-edge bg-surface-input px-2.5 py-2 transition-colors hover:border-edge-strong"
+                  className="group flex items-start gap-1 rounded-lg border border-edge bg-surface-input px-2 py-1 transition-colors hover:border-edge-strong"
                 >
                   <button
                     type="button"
                     onClick={() => handleToggle(item.id)}
                     aria-pressed={item.done}
                     aria-label={`Mark "${item.text}" as ${item.done ? 'not planned' : 'planned'}`}
-                    className={cn(
-                      'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
-                      item.done
-                        ? 'border-emerald-500/60 bg-emerald-500 text-obsidian'
-                        : 'border-edge-strong bg-surface hover:border-neutral-600',
-                    )}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors"
                   >
-                    {item.done && <Check className="h-3 w-3" strokeWidth={3} />}
+                    <span
+                      className={cn(
+                        'flex h-4 w-4 items-center justify-center rounded border transition-colors',
+                        item.done
+                          ? 'border-emerald-500/60 bg-emerald-500 text-obsidian'
+                          : 'border-edge-strong bg-surface hover:border-neutral-600',
+                      )}
+                    >
+                      {item.done && <Check className="h-3 w-3" strokeWidth={3} />}
+                    </span>
                   </button>
 
                   {editingId === item.id ? (
@@ -280,7 +284,7 @@ export default function TomorrowPlannerView({
                       onClick={() => handleToggle(item.id)}
                       onDoubleClick={() => beginEdit(item)}
                       className={cn(
-                        'min-w-0 flex-1 break-words text-left text-xs leading-relaxed transition-colors',
+                        'flex min-h-[44px] min-w-0 flex-1 items-center break-words py-1 text-left text-xs leading-relaxed transition-colors',
                         item.done
                           ? 'text-ink-muted line-through'
                           : 'text-ink-secondary hover:text-ink',
@@ -292,22 +296,22 @@ export default function TomorrowPlannerView({
                   )}
 
                   {editingId !== item.id && (
-                    <span className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                    <span className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity focus-within:opacity-100 [@media(pointer:fine)]:opacity-0 [@media(pointer:fine)]:group-hover:opacity-100">
                       <button
                         type="button"
                         onClick={() => beginEdit(item)}
                         aria-label={`Edit plan item: ${item.text}`}
-                        className="rounded p-0.5 text-ink-muted transition-colors hover:text-ink"
+                        className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-input hover:text-ink active:bg-surface-input"
                       >
-                        <Pencil className="h-3 w-3" strokeWidth={2} />
+                        <Pencil className="h-4 w-4" strokeWidth={2} />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleRemove(item.id)}
                         aria-label={`Remove plan item: ${item.text}`}
-                        className="rounded p-0.5 text-ink-muted transition-colors hover:text-red-400"
+                        className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-input hover:text-red-400 active:bg-surface-input"
                       >
-                        <X className="h-3 w-3" strokeWidth={2} />
+                        <X className="h-4 w-4" strokeWidth={2} />
                       </button>
                     </span>
                   )}
@@ -319,7 +323,7 @@ export default function TomorrowPlannerView({
       </section>
 
       {/* Settled plans, in strict chronological order. */}
-      <section className="card w-full p-5" aria-labelledby="plan-history-heading">
+      <section className="card w-full p-4 md:p-5" aria-labelledby="plan-history-heading">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2
             id="plan-history-heading"
@@ -365,7 +369,7 @@ export default function TomorrowPlannerView({
                     <button
                       type="button"
                       onClick={() => onOpenInTracker(day.dayNum)}
-                      className="text-xs font-medium text-ink underline decoration-ink-muted underline-offset-4 transition-colors hover:decoration-ink"
+                      className="inline-flex min-h-[44px] items-center text-xs font-medium text-ink underline decoration-ink-muted underline-offset-4 transition-colors hover:decoration-ink"
                     >
                       Open in tracker
                     </button>

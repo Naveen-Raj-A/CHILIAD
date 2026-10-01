@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, Lock, Save, X } from 'lucide-react'
 import StatusBadge from '../StatusBadge'
 import ProgressBar from '../ProgressBar'
@@ -114,7 +114,7 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
   return (
     <div className="w-full space-y-6">
       {/* Header + day navigation */}
-      <div className="card p-5">
+      <div className="card p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-2xs font-medium uppercase tracking-[0.16em] text-ink-muted">
@@ -144,7 +144,7 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
             onClick={() => goToDay(selectedDayNum - 1)}
             disabled={selectedDayNum <= 1}
             aria-label="Previous day"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-edge-strong bg-surface-input text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-edge-strong bg-surface-input text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -176,7 +176,7 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
             onClick={() => goToDay(selectedDayNum + 1)}
             disabled={selectedDayNum >= TOTAL_DAYS}
             aria-label="Next day"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-edge-strong bg-surface-input text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-edge-strong bg-surface-input text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -184,7 +184,7 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
       </div>
 
       {/* Entry form */}
-      <div className="card space-y-5 p-5 sm:p-6">
+      <div className="card space-y-5 p-4 md:p-5 md:space-y-5 md:p-6">
         {/* Lockdown state is stated up front, not only on the disabled inputs. */}
         <div
           className={cn(
@@ -220,7 +220,7 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
 
         {/* Planned action items, planned in the Tomorrow Planner and now due. */}
         {hasPlan && (
-          <div className="rounded-lg border border-edge bg-surface-input p-4">
+          <div className="rounded-lg border border-edge bg-surface-input p-3 md:p-4">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-2xs font-semibold uppercase tracking-[0.12em] text-ink-secondary">
                 Today's planned items
@@ -231,18 +231,21 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
             </div>
 
             {/*
-              Hover quick actions. The checkbox is always clickable, but it is
-              a 16px target that requires precision; these are hover-revealed
-              affordances for finishing a line quickly without hunting for it.
-              They are hidden with `opacity-0` rather than removed so the row
-              never reflows on hover, and they surface on keyboard focus too,
-              so the shortcut is reachable without a pointer.
-            */}
-            <ul className="mt-3 space-y-1.5">
+                Hover quick actions. The checkbox is always clickable, but it
+                is a small target that requires precision; these are extra
+                affordances for finishing a line without hunting for it.
+
+                On a touch device there is no hover to reveal them, so they are
+                permanently visible there and only collapse behind a hover on a
+                device that actually has a pointer. `pointer-fine` keys off the
+                input device rather than viewport width, so a touch tablet stays
+                usable instead of inheriting the desktop hover behaviour.
+              */}
+            <ul className="mt-3 space-y-1">
               {planItems.map((item) => (
                 <li
                   key={item.id}
-                  className="group flex items-start gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-surface-hover/50"
+                  className="group flex items-center gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-surface-hover/50"
                 >
                   <button
                     type="button"
@@ -252,18 +255,27 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
                     onClick={() => handleTogglePlanItem(item.id)}
                     aria-label={`${item.done ? 'Untick' : 'Tick'} "${item.text}"`}
                     className={cn(
-                      'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
+                      // The 44px box is the tap target; the 16px square drawn
+                      // inside it is the visual, centred. Growing the square
+                      // itself would wreck the list's density.
+                      'flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors',
                       !editable && 'cursor-not-allowed',
-                      item.done
-                        ? 'border-emerald-500/60 bg-emerald-500 text-obsidian'
-                        : 'border-edge-strong bg-surface hover:border-neutral-600',
                     )}
                   >
-                    {item.done && <Check className="h-3 w-3" strokeWidth={3} />}
+                    <span
+                      className={cn(
+                        'flex h-4 w-4 items-center justify-center rounded border transition-colors',
+                        item.done
+                          ? 'border-emerald-500/60 bg-emerald-500 text-obsidian'
+                          : 'border-edge-strong bg-surface hover:border-neutral-600',
+                      )}
+                    >
+                      {item.done && <Check className="h-3 w-3" strokeWidth={3} />}
+                    </span>
                   </button>
                   <span
                     className={cn(
-                      'min-w-0 flex-1 break-words text-xs leading-relaxed',
+                      'min-w-0 flex-1 py-2 break-words text-xs leading-relaxed',
                       item.done ? 'text-ink-muted line-through' : 'text-ink-secondary',
                     )}
                   >
@@ -271,24 +283,24 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
                   </span>
 
                   {editable && (
-                    <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                    <span className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity focus-within:opacity-100 [@media(pointer:fine)]:opacity-0 [@media(pointer:fine)]:group-hover:opacity-100">
                       <button
                         type="button"
                         onClick={() => handleTogglePlanItem(item.id)}
                         title={item.done ? 'Reopen item' : 'Mark done'}
                         aria-label={`${item.done ? 'Reopen' : 'Mark done'}: ${item.text}`}
-                        className="rounded p-1 text-ink-muted transition-colors hover:bg-surface-input hover:text-emerald-400"
+                        className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-input hover:text-emerald-400 active:bg-surface-input"
                       >
-                        <Check className="h-3 w-3" strokeWidth={2.5} />
+                        <Check className="h-4 w-4" strokeWidth={2.5} />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleRemovePlanItem(item.id)}
                         title="Remove item"
                         aria-label={`Remove: ${item.text}`}
-                        className="rounded p-1 text-ink-muted transition-colors hover:bg-surface-input hover:text-red-400"
+                        className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-input hover:text-red-400 active:bg-surface-input"
                       >
-                        <X className="h-3 w-3" strokeWidth={2.5} />
+                        <X className="h-4 w-4" strokeWidth={2.5} />
                       </button>
                     </span>
                   )}
@@ -299,7 +311,7 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
         )}
 
         {/* Two-column workspace: identity/plan on the left, narrative on the right. */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
           {/* Left column */}
           <div className="space-y-5">
             <div>
@@ -320,7 +332,7 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <span className="label">Status</span>
-                <div className="flex h-10 items-center gap-2 rounded-lg border border-edge bg-surface-input px-3">
+                <div className="flex h-11 items-center gap-2 rounded-lg border border-edge bg-surface-input px-3">
                   <StatusBadge status={values.status} />
                 </div>
                 <p className="mt-1 text-2xs text-ink-muted">
@@ -409,7 +421,7 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
             <button
               type="button"
               onClick={handleMarkComplete}
-              className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-sm font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-sm font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20"
             >
               <CheckCircle2 className="h-4 w-4" strokeWidth={2.25} />
               Mark day complete
@@ -420,7 +432,7 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
             type="button"
             onClick={handleDiscard}
             disabled={!isDirty}
-            className="inline-flex items-center gap-2 rounded-lg border border-edge-strong bg-surface-input px-3.5 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-edge-strong bg-surface-input px-3.5 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
           >
             <X className="h-4 w-4" strokeWidth={2} />
             Discard
@@ -429,7 +441,7 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
             type="button"
             onClick={handleSave}
             disabled={!isDirty || !editable}
-            className="inline-flex items-center gap-2 rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-obsidian transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-obsidian transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Save className="h-4 w-4" strokeWidth={2.25} />
             Save Day
@@ -446,7 +458,7 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
           type="button"
           onClick={() => goToDay(selectedDayNum - 1)}
           disabled={selectedDayNum <= 1}
-          className="rounded-lg border border-edge-strong bg-surface-input px-3 py-1.5 text-xs text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex min-h-[44px] items-center rounded-lg border border-edge-strong bg-surface-input px-3 py-1.5 text-xs text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
         >
           Previous
         </button>
@@ -457,7 +469,7 @@ export default function DailyTrackerView({ days, selectedDayNum, onSelectDay, on
           type="button"
           onClick={() => goToDay(selectedDayNum + 1)}
           disabled={selectedDayNum >= TOTAL_DAYS}
-          className="rounded-lg border border-edge-strong bg-surface-input px-3 py-1.5 text-xs text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex min-h-[44px] items-center rounded-lg border border-edge-strong bg-surface-input px-3 py-1.5 text-xs text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
         >
           Next
         </button>

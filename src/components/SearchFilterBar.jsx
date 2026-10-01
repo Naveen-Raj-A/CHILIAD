@@ -35,7 +35,7 @@ export default function SearchFilterBar({
             type="button"
             onClick={() => onQueryChange('')}
             aria-label="Clear search"
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-ink-muted transition-colors hover:text-ink"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded text-ink-muted transition-colors hover:text-ink"
           >
             <X className="h-4 w-4" />
           </button>
@@ -51,8 +51,8 @@ export default function SearchFilterBar({
             aria-pressed={status === option}
             className={
               status === option
-                ? 'rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-obsidian transition-colors'
-                : 'rounded-full border border-edge-strong bg-surface-input px-3 py-1.5 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink'
+                ? 'inline-flex min-h-[44px] items-center rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-obsidian transition-colors'
+                : 'inline-flex min-h-[44px] items-center rounded-full border border-edge-strong bg-surface-input px-3 py-1.5 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink'
             }
           >
             {option}

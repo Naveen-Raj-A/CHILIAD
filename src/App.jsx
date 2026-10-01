@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Sidebar from './components/Sidebar'
+import MobileHeader from './components/MobileHeader'
 import Toast from './components/Toast'
 import CommandPalette from './components/CommandPalette'
 import DashboardView from './components/views/DashboardView'
@@ -78,6 +79,9 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState(SYNC_STATUS.SAVING)
   const [pendingCount, setPendingCount] = useState(() => queueSize())
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
+  // Mobile drawer. Desktop ignores it: the rail is a static sibling there, and
+  // `md:translate-x-0` keeps it on screen whatever this is set to.
+  const [isNavOpen, setIsNavOpen] = useState(false)
 
   // Global sidebar to-do list — shared by Sidebar, Dashboard and Tracker.
   // Held at the top level so every view reacts to changes in the same render.
@@ -147,29 +151,61 @@ export default function App() {
     }
   }, [])
 
-  /**
-   * Global Ctrl/Cmd + K listener. Bound once here so the palette opens from
-   * any view without each view registering its own handler.
+/**
+   * Global Ctrl/Cmd + K listener, plus Escape-to-close for the overlays.
+   * Bound once here so the palette and the drawer do not each register their own.
    */
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
 
     function handleKeyDown(event) {
-      const isPaletteCombo = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k'
-      if (isPaletteCombo) {
-        // Stop the browser's own Ctrl+K (link/search) behaviour.
-        event.preventDefault()
-        setIsPaletteOpen((prev) => !prev)
+      if (event.key === 'Escape') {
+        if (isNavOpen) {
+          setIsNavOpen(false)
+          return
+        }
+        if (isPaletteOpen) {
+          setIsPaletteOpen(false)
+          return
+        }
+      }
+
+      if (event.ctrlKey || event.metaKey) {
+        if (event.key.toLowerCase() === 'k') {
+          // Stop the browser's own Ctrl+K (link/search) behaviour.
+          event.preventDefault()
+          setIsPaletteOpen((prev) => !prev)
+        }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [isNavOpen, isPaletteOpen])
+
+  /**
+   * Freeze the page behind the drawer while it is open.
+   *
+   * The layout does not scroll the document — `main` is the scroll region — so
+   * without this the background would still rubber-band under the scrim on
+   * touch, which reads as the drawer itself being draggable.
+   */
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (!isNavOpen) return
+
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [isNavOpen])
 
   const notify = useCallback((next) => setToast(next), [])
   const dismissToast = useCallback(() => setToast(null), [])
   const closePalette = useCallback(() => setIsPaletteOpen(false), [])
+  const openNav = useCallback(() => setIsNavOpen(true), [])
+  const closeNav = useCallback(() => setIsNavOpen(false), [])
 
   /**
    * Flush the offline queue as soon as connectivity is restored, so edits
@@ -452,7 +488,27 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-obsidian text-ink">
+    // `h-[100dvh]` rather than `h-screen`: on mobile browsers `100vh` is the
+    // *largest* viewport, so it includes the space behind the collapsing
+    // address bar and pushes the footer below the fold. `dvh` tracks the
+    // viewport actually visible right now.
+    //
+    // `w-full` rather than `w-screen`: `100vw` counts the classic scrollbar,
+    // which is enough on its own to push a few pixels of horizontal overflow
+    // onto the root and produce a whole-page sideways scroll on a phone.
+    <div className="flex h-[100dvh] w-full overflow-hidden bg-obsidian text-ink">
+      {/*
+        Drawer scrim. Rendered only while open, and only below md where the
+        rail is an overlay — on desktop the rail is a static sibling and a
+        dimmed backdrop over it would be nonsense.
+      */}
+      <button
+        type="button"
+        onClick={closeNav}
+        aria-label="Close navigation"
+        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+      />
+
       <Sidebar
         activeView={activeView}
         onNavigate={setActiveView}
@@ -461,23 +517,40 @@ export default function App() {
         syncStatus={syncStatus}
         pendingCount={pendingCount}
         onOpenSearch={() => setIsPaletteOpen(true)}
+        isOpen={isNavOpen}
+        onClose={closeNav}
       />
 
-      {/* The one scrolling region. The sidebar is a fixed-width sibling that
-          never scrolls, so only this panel moves. `min-h-full` on the inner
-          column keeps the footer at the bottom of short pages instead of
-          letting it ride up mid-content. */}
-      <main className="h-full min-w-0 flex-1 overflow-y-auto scroll-smooth bg-obsidian">
-        <div className="flex min-h-full w-full flex-col px-6 py-6 lg:px-10">
-          <div className="flex-1 space-y-6">
-            <ActiveView {...viewProps} />
+      {/* Content column: the mobile bar, then the one scrolling region. */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <MobileHeader
+          activeDayNum={selectedDayNum}
+          onOpenNav={openNav}
+          onUpdateToday={handleUpdateToday}
+        />
 
-            <footer className="w-full border-t border-edge py-4 text-2xs text-ink-muted">
-              Chiliad - 1,000 Day Journey. Data is stored locally in your browser.
-            </footer>
+        {/*
+          `min-h-0` is what lets this actually scroll: a flex child defaults to
+          `min-height: auto`, which refuses to shrink below its content and
+          makes an `overflow-y-auto` here a no-op.
+        */}
+        <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth bg-obsidian">
+          {/*
+            `pb-[env(safe-area-inset-bottom)]` keeps the footer clear of the
+            iOS home indicator, and the side padding collapses to `px-4` on
+            phones so cards use the width they have.
+          */}
+          <div className="flex min-h-full w-full flex-col px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-6 md:py-6 lg:px-10">
+            <div className="flex-1 space-y-4 md:space-y-6">
+              <ActiveView {...viewProps} />
+
+              <footer className="w-full border-t border-edge py-4 text-2xs text-ink-muted">
+                Chiliad - 1,000 Day Journey. Data is stored locally in your browser.
+              </footer>
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
 
       <Toast toast={toast} onDismiss={dismissToast} />
 

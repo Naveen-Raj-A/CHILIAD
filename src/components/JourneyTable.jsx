@@ -112,7 +112,7 @@ export default function JourneyTable({
 
   return (
     <section className="card overflow-hidden" aria-labelledby="journey-heading">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-4 py-4 md:px-5">
         <div>
           <h2
             id="journey-heading"
@@ -133,7 +133,7 @@ export default function JourneyTable({
             onClick={() => goToPage(safePage - 1)}
             disabled={safePage === 0}
             aria-label="Previous page"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-edge-strong bg-surface-input text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-edge-strong bg-surface-input text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -145,14 +145,27 @@ export default function JourneyTable({
             onClick={() => goToPage(safePage + 1)}
             disabled={safePage >= totalPages - 1}
             aria-label="Next page"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-edge-strong bg-surface-input text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-edge-strong bg-surface-input text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {/*
+        Touch-scroll container for the wide table.
+
+        The negative inline margin plus matching padding makes the scroll area
+        bleed to the screen edges on a phone, so the table can be swiped across
+        the full viewport width while the header and paging controls stay
+        aligned with the card. Without it the table is boxed inside the card and
+        a horizontal drag has only the leftover gutter to work with.
+
+        `overscroll-x-contain` stops a sideways flick at either end from
+        chaining to the page scroll, and both values are dropped at `sm` where
+        the card is already wide enough to hold the table without bleeding.
+      */}
+      <div className="-mx-4 overflow-x-auto px-4 overscroll-x-contain sm:mx-0 sm:px-0">
         <table className="w-full min-w-[84rem] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-edge bg-surface-raised/60">
@@ -189,7 +202,13 @@ export default function JourneyTable({
                     if (!isFuture) onSelectDay(day.dayNum)
                   }}
                   className={cn(
+                    // A tappable row needs 44px; on desktop a pointer makes the
+                    // cell area itself a perfectly good target, and padding
+                    // every row out would double the visible table height for
+                    // no gain. `pointer-fine` keys off the input device, so a
+                    // touch laptop or tablet keeps the larger rows.
                     'border-b border-edge/70 transition-colors',
+                    'min-h-[44px] [@media(pointer:fine)]:min-h-0',
                     isFuture
                       ? 'bg-surface-input/40 text-ink-muted opacity-60'
                       : cn(

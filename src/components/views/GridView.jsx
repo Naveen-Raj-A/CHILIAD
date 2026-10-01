@@ -69,7 +69,7 @@ export default function GridView({
             type="button"
             onClick={() => setActiveTag('All')}
             className={cn(
-              'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+              'inline-flex min-h-[44px] items-center rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
               activeTag === 'All'
                 ? 'bg-ink text-obsidian'
                 : 'border border-edge-strong bg-surface-input text-ink-secondary hover:bg-surface-hover hover:text-ink',
@@ -83,7 +83,7 @@ export default function GridView({
               type="button"
               onClick={() => setActiveTag(tag)}
               className={cn(
-                'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+                'inline-flex min-h-[44px] items-center rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                 activeTag === tag
                   ? 'border border-sky-500/30 bg-sky-500/20 text-sky-400'
                   : 'border border-edge-strong bg-surface-input text-ink-secondary hover:bg-surface-hover hover:text-ink',

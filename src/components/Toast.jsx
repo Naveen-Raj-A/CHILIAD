@@ -41,7 +41,7 @@ export default function Toast({ toast, onDismiss, duration = 3000 }) {
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss notification"
-          className="rounded p-0.5 opacity-70 transition-opacity hover:opacity-100"
+          className="flex h-11 w-11 items-center justify-center rounded opacity-70 transition-opacity hover:opacity-100"
         >
           <X className="h-3.5 w-3.5" />
         </button>

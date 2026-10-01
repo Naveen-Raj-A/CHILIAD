@@ -59,48 +59,63 @@ export default function Heatmap({ days, todayISO, selectedDayNum, onSelectDay })
         </div>
       </div>
 
-      <div className="mt-5 space-y-1.5">
-        {rows.map((row, rowIndex) => (
-          <div key={ROW_LABELS[rowIndex]} className="flex items-center gap-2">
-            <span className="w-10 shrink-0 text-right font-mono text-2xs tabular-nums text-ink-muted">
-              {ROW_LABELS[rowIndex]}
-            </span>
-            <div className="grid flex-1 grid-cols-25 gap-0.5 min-[640px]:grid-cols-50 lg:grid-cols-100">
-              {row.map((day) => {
-                const isSelected = day.dayNum === selectedDayNum
-                const isFuture = lockState(day, todayISO) === LOCK_FUTURE
-                return (
-                  <button
-                    key={day.dayNum}
-                    type="button"
-                    disabled={isFuture}
-                    onClick={() => onSelectDay(day.dayNum)}
-                    title={
-                      isFuture
-                        ? `Day ${day.dayNum} - locked (future date)`
-                        : `Day ${day.dayNum} - ${day.status}`
-                    }
-                    aria-label={
-                      isFuture
-                        ? `Day ${day.dayNum}, locked, future date`
-                        : `Day ${day.dayNum}, ${day.status}`
-                    }
-                    aria-pressed={isSelected}
-                    aria-disabled={isFuture}
-                    className={cn(
-                      'aspect-square rounded-sm transition-all focus:outline-none focus:ring-2 focus:ring-white/70',
-                      blockTone(day),
-                      isFuture
-                        ? 'cursor-not-allowed border border-dashed border-neutral-600 bg-surface-input opacity-50'
-                        : 'hover:ring-1 hover:ring-white/60',
-                      !isFuture && isSelected && 'ring-2 ring-white ring-offset-1 ring-offset-surface',
-                    )}
-                  />
-                )
-              })}
+      {/*
+        1,000 cells cannot all be 44px: at that size the grid would be wider
+        than the 1,000-day journey it depicts. So the heatmap is a *pan* surface
+        on touch rather than a tap surface — it scrolls horizontally with cells
+        held above a legible floor, and precise day selection on a phone is
+        served by the Data Table, which has real 44px rows.
+
+        `min-w-[34rem]` keeps 25 columns at ~20px instead of letting them
+        collapse to ~12px at 360px, and `overscroll-x-contain` stops a sideways
+        flick from chaining to the page.
+      */}
+      <div className="-mx-4 mt-5 overflow-x-auto px-4 overscroll-x-contain sm:mx-0 sm:px-0">
+        <div className="min-w-[34rem] space-y-1.5 md:min-w-0">
+          {rows.map((row, rowIndex) => (
+            <div key={ROW_LABELS[rowIndex]} className="flex items-center gap-2">
+              <span className="w-10 shrink-0 text-right font-mono text-2xs tabular-nums text-ink-muted">
+                {ROW_LABELS[rowIndex]}
+              </span>
+              <div className="grid flex-1 grid-cols-25 gap-0.5 min-[640px]:grid-cols-50 lg:grid-cols-100">
+                {row.map((day) => {
+                  const isSelected = day.dayNum === selectedDayNum
+                  const isFuture = lockState(day, todayISO) === LOCK_FUTURE
+                  return (
+                    <button
+                      key={day.dayNum}
+                      type="button"
+                      disabled={isFuture}
+                      onClick={() => onSelectDay(day.dayNum)}
+                      title={
+                        isFuture
+                          ? `Day ${day.dayNum} - locked (future date)`
+                          : `Day ${day.dayNum} - ${day.status}`
+                      }
+                      aria-label={
+                        isFuture
+                          ? `Day ${day.dayNum}, locked, future date`
+                          : `Day ${day.dayNum}, ${day.status}`
+                      }
+                      aria-pressed={isSelected}
+                      aria-disabled={isFuture}
+                      className={cn(
+                        // A cell is a pointer target, so it keeps a sane hover
+                        // and focus ring; touch users get the scroll instead.
+                        'aspect-square rounded-sm transition-all focus:outline-none focus:ring-2 focus:ring-white/70',
+                        blockTone(day),
+                        isFuture
+                          ? 'cursor-not-allowed border border-dashed border-neutral-600 bg-surface-input opacity-50'
+                          : 'hover:ring-1 hover:ring-white/60',
+                        !isFuture && isSelected && 'ring-2 ring-white ring-offset-1 ring-offset-surface',
+                      )}
+                    />
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )

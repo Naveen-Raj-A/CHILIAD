@@ -186,7 +186,7 @@ function DayPanel({ entry, todayISO }) {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-3 md:gap-4 lg:grid-cols-3">
       <div className="flex flex-col items-center gap-3 rounded-lg border border-edge bg-surface-input p-4">
         <Donut
           segments={[
@@ -294,7 +294,7 @@ function WeekPanel({ days, todayISO }) {
   const segments = countSegments(windowDays)
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-3 md:gap-4 lg:grid-cols-3">
       <div className="flex flex-col items-center gap-3 rounded-lg border border-edge bg-surface-input p-4">
         <Donut
           segments={segments.length ? segments : [{ label: 'No data', value: 1, color: NONE }]}
@@ -408,7 +408,7 @@ function MonthPanel({ days, todayISO }) {
   })
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-3 md:gap-4 lg:grid-cols-3">
       <div className="flex flex-col items-center gap-3 rounded-lg border border-edge bg-surface-input p-4">
         <Donut
           segments={[
@@ -536,7 +536,7 @@ function YearPanel({ days, todayISO }) {
   const currentMonth = fromISODate(todayISO).getMonth()
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-3 md:gap-4 lg:grid-cols-3">
       <div className="space-y-3 lg:col-span-2">
         <div className="grid grid-cols-3 gap-3">
           <Metric
@@ -642,7 +642,7 @@ export default function PeriodAnalytics({ days, todayISO }) {
   )
 
   return (
-    <section className="card p-5" aria-labelledby="period-analytics-heading">
+    <section className="card p-4 md:p-5" aria-labelledby="period-analytics-heading">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2
@@ -671,7 +671,7 @@ export default function PeriodAnalytics({ days, todayISO }) {
               aria-selected={period === option}
               onClick={() => setPeriod(option)}
               className={cn(
-                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                'inline-flex min-h-[44px] items-center rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
                 period === option
                   ? 'bg-ink text-obsidian'
                   : 'text-ink-secondary hover:bg-surface-hover hover:text-ink',

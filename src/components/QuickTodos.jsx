@@ -52,7 +52,7 @@ export default function QuickTodos({
   }
 
   return (
-    <div className="card p-5">
+    <div className="card p-4 md:p-5">
       {showHeader && (
         <div className="flex items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-ink-secondary">
@@ -85,7 +85,7 @@ export default function QuickTodos({
           type="submit"
           disabled={!draft.trim()}
           aria-label="Add task"
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ink text-obsidian transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ink text-obsidian transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Plus className="h-4 w-4" strokeWidth={2.25} />
         </button>
@@ -101,7 +101,7 @@ export default function QuickTodos({
         {todos.map((task) => (
           <li
             key={task.id}
-            className="group flex items-start gap-2 rounded-lg border border-edge bg-surface-input px-2.5 py-2 transition-colors hover:border-edge-strong"
+            className="group flex items-start gap-1 rounded-lg border border-edge bg-surface-input px-2 py-1 transition-colors hover:border-edge-strong"
           >
             <button
               type="button"
@@ -109,14 +109,18 @@ export default function QuickTodos({
               aria-checked={task.done}
               aria-label={`Mark "${task.text}" as ${task.done ? 'not done' : 'done'}`}
               onClick={() => onToggle(task.id)}
-              className={cn(
-                'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
-                task.done
-                  ? 'border-emerald-500/60 bg-emerald-500 text-obsidian'
-                  : 'border-edge-strong bg-surface hover:border-neutral-600',
-              )}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors"
             >
-              {task.done && <Check className="h-3 w-3" strokeWidth={3} />}
+              <span
+                className={cn(
+                  'flex h-4 w-4 items-center justify-center rounded border transition-colors',
+                  task.done
+                    ? 'border-emerald-500/60 bg-emerald-500 text-obsidian'
+                    : 'border-edge-strong bg-surface hover:border-neutral-600',
+                )}
+              >
+                {task.done && <Check className="h-3 w-3" strokeWidth={3} />}
+              </span>
             </button>
 
             {editingId === task.id ? (
@@ -139,7 +143,7 @@ export default function QuickTodos({
                 onClick={() => onToggle(task.id)}
                 onDoubleClick={() => beginEdit(task)}
                 className={cn(
-                  'min-w-0 flex-1 break-words text-left text-xs leading-relaxed transition-colors',
+                  'flex min-h-[44px] min-w-0 flex-1 items-center break-words py-1 text-left text-xs leading-relaxed transition-colors',
                   task.done ? 'text-ink-muted line-through' : 'text-ink-secondary hover:text-ink',
                 )}
                 title={task.text}
@@ -149,22 +153,23 @@ export default function QuickTodos({
             )}
 
             {editingId !== task.id && (
-              <span className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+              // Visible by default on touch, hover-revealed only with a pointer.
+              <span className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity focus-within:opacity-100 [@media(pointer:fine)]:opacity-0 [@media(pointer:fine)]:group-hover:opacity-100">
                 <button
                   type="button"
                   onClick={() => beginEdit(task)}
                   aria-label={`Edit task: ${task.text}`}
-                  className="rounded p-0.5 text-ink-muted transition-colors hover:text-ink"
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-input hover:text-ink active:bg-surface-input"
                 >
-                  <Pencil className="h-3 w-3" strokeWidth={2} />
+                  <Pencil className="h-4 w-4" strokeWidth={2} />
                 </button>
                 <button
                   type="button"
                   onClick={() => onRemove(task.id)}
                   aria-label={`Delete task: ${task.text}`}
-                  className="rounded p-0.5 text-ink-muted transition-colors hover:text-red-400"
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-surface-input hover:text-red-400 active:bg-surface-input"
                 >
-                  <X className="h-3 w-3" strokeWidth={2} />
+                  <X className="h-4 w-4" strokeWidth={2} />
                 </button>
               </span>
             )}

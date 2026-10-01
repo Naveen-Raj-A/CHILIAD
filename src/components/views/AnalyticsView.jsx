@@ -56,7 +56,7 @@ export default function AnalyticsView({ days, stats, selectedDayNum, syncStatus,
       </div>
 
       {/* Milestone velocity bars */}
-      <section className="card p-5" aria-labelledby="milestones-heading">
+      <section className="card p-4 md:p-5" aria-labelledby="milestones-heading">
         <h2
           id="milestones-heading"
           className="text-sm font-semibold uppercase tracking-[0.12em] text-ink-secondary"
@@ -67,7 +67,7 @@ export default function AnalyticsView({ days, stats, selectedDayNum, syncStatus,
           Completion rate for each 100-day block.
         </p>
 
-        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="mt-5 grid grid-cols-1 gap-3 md:gap-4 md:grid-cols-2">
           {milestones.map((block) => (
             <div
               key={block.start}
@@ -95,7 +95,7 @@ export default function AnalyticsView({ days, stats, selectedDayNum, syncStatus,
       </section>
 
       {/* Status breakdown */}
-      <section className="card p-5" aria-labelledby="breakdown-heading">
+      <section className="card p-4 md:p-5" aria-labelledby="breakdown-heading">
         <h2
           id="breakdown-heading"
           className="text-sm font-semibold uppercase tracking-[0.12em] text-ink-secondary"
