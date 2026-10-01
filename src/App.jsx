@@ -81,7 +81,7 @@ export default function App() {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
   // Mobile drawer. Desktop ignores it: the rail is a static sibling there, and
   // `md:translate-x-0` keeps it on screen whatever this is set to.
-  const [isNavOpen, setIsNavOpen] = useState(false)
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   // Global sidebar to-do list — shared by Sidebar, Dashboard and Tracker.
   // Held at the top level so every view reacts to changes in the same render.
@@ -160,8 +160,8 @@ export default function App() {
 
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
-        if (isNavOpen) {
-          setIsNavOpen(false)
+        if (isMobileOpen) {
+          setIsMobileOpen(false)
           return
         }
         if (isPaletteOpen) {
@@ -181,7 +181,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isNavOpen, isPaletteOpen])
+  }, [isMobileOpen, isPaletteOpen])
 
   /**
    * Freeze the page behind the drawer while it is open.
@@ -192,20 +192,20 @@ export default function App() {
    */
   useEffect(() => {
     if (typeof document === 'undefined') return
-    if (!isNavOpen) return
+    if (!isMobileOpen) return
 
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = previous
     }
-  }, [isNavOpen])
+  }, [isMobileOpen])
 
   const notify = useCallback((next) => setToast(next), [])
   const dismissToast = useCallback(() => setToast(null), [])
   const closePalette = useCallback(() => setIsPaletteOpen(false), [])
-  const openNav = useCallback(() => setIsNavOpen(true), [])
-  const closeNav = useCallback(() => setIsNavOpen(false), [])
+  const openMobileNav = useCallback(() => setIsMobileOpen(true), [])
+  const closeMobileNav = useCallback(() => setIsMobileOpen(false), [])
 
   /**
    * Flush the offline queue as soon as connectivity is restored, so edits
@@ -498,16 +498,32 @@ export default function App() {
     // onto the root and produce a whole-page sideways scroll on a phone.
     <div className="flex h-[100dvh] w-full overflow-hidden bg-obsidian text-ink">
       {/*
-        Drawer scrim. Rendered only while open, and only below md where the
-        rail is an overlay — on desktop the rail is a static sibling and a
-        dimmed backdrop over it would be nonsense.
+        Drawer scrim.
+
+        Conditionally rendered, and this is load-bearing rather than tidiness.
+        A permanently-mounted `fixed inset-0` scrim stays in the DOM with the
+        drawer closed, so on a phone it sits over the main content doing exactly
+        what it is styled to do: dimming and blurring the dashboard on load.
+        `md:hidden` keeps it off desktop, where the rail is a static sibling and
+        a backdrop over it would be meaningless.
+
+        Removing the element rather than hiding it with `opacity-0` also removes
+        it from the accessibility tree and from the tap surface, so there is no
+        invisible full-screen button swallowing taps when the drawer is closed.
       */}
-      <button
-        type="button"
-        onClick={closeNav}
-        aria-label="Close navigation"
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
-      />
+      {isMobileOpen && (
+        // `aria-hidden` + `tabIndex={-1}` on purpose: the drawer's own X button
+        // and the Escape key are the accessible ways to dismiss, and this
+        // scrim would otherwise be a second control with the same label and an
+        // extra tab stop reading "Close navigation".
+        <button
+          type="button"
+          onClick={closeMobileNav}
+          aria-hidden="true"
+          tabIndex={-1}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+        />
+      )}
 
       <Sidebar
         activeView={activeView}
@@ -517,15 +533,15 @@ export default function App() {
         syncStatus={syncStatus}
         pendingCount={pendingCount}
         onOpenSearch={() => setIsPaletteOpen(true)}
-        isOpen={isNavOpen}
-        onClose={closeNav}
+        isOpen={isMobileOpen}
+        onClose={closeMobileNav}
       />
 
       {/* Content column: the mobile bar, then the one scrolling region. */}
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileHeader
           activeDayNum={selectedDayNum}
-          onOpenNav={openNav}
+          onOpenNav={openMobileNav}
           onUpdateToday={handleUpdateToday}
         />
 
